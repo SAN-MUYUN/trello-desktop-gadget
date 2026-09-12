@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('gadget', {
   // Data
   getBoard: (boardId) => ipcRenderer.invoke('board:get', boardId),
   listBoards: () => ipcRenderer.invoke('boards:list'),
+  getHistory: (boardId) => ipcRenderer.invoke('history:get', boardId),
+  clearHistory: (boardId) => ipcRenderer.invoke('history:clear', boardId),
 
   // Live updates pushed from the main process (polling).
   onBoardUpdate: (callback) => {

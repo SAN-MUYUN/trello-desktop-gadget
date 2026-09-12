@@ -10,8 +10,9 @@ try {
   // dotenv is optional at runtime; ignore if unavailable.
 }
 
-const { getBoardData, getBoards } = require('../trello/client');
+const { getBoardData, getBoards, useMock } = require('../trello/client');
 const { computeStats } = require('../stats/compute');
+const history = require('../history/store');
 
 const isDev = process.argv.includes('--dev');
 
@@ -71,7 +72,23 @@ function createWindow() {
 ipcMain.handle('board:get', async (_event, boardId) => {
   const board = await getBoardData(boardId);
   const stats = computeStats(board);
+  // In mock mode, seed synthetic history so the "over time" chart is
+  // demonstrable immediately. Real mode builds history from actual refreshes.
+  if (useMock()) {
+    history.seedIfEmpty(board, stats);
+  }
+  // Record a timestamped snapshot so we can chart change over time.
+  history.record(board, stats);
   return { board, stats };
+});
+
+ipcMain.handle('history:get', async (_event, boardId) => {
+  return history.getSeries(boardId);
+});
+
+ipcMain.handle('history:clear', async (_event, boardId) => {
+  history.clear(boardId);
+  return true;
 });
 
 ipcMain.handle('boards:list', async () => {
@@ -120,6 +137,7 @@ function stopPolling() {
 }
 
 app.whenReady().then(() => {
+  history.init(app.getPath('userData'));
   createWindow();
   startPolling();
 

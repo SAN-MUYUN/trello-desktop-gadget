@@ -7,6 +7,12 @@ let selectedColumn = '__all__';
 let selectedChart = 'cardsPerList';
 let selectedBoardId = ''; // '' = let the app pick your first board
 let boardsLoaded = false;
+
+// A palette for the over-time multi-line chart (one color per column).
+const SERIES_COLORS = [
+  '#a78bfa', '#4fdda3', '#5aa9e6', '#ffb454', '#ff6b81',
+  '#e6c84f', '#7ee787', '#f78fb3', '#63c5da', '#c792ea',
+];
 let chartInstance = null;
 
 // ---- Elements ----
@@ -266,7 +272,38 @@ function chartConfig() {
   };
 }
 
-function renderChart() {
+// Build the "cards per column over time" line chart from recorded history.
+async function buildOverTimeConfig() {
+  const boardId = (currentBoard && currentBoard.id) || selectedBoardId;
+  const hist = await window.gadget.getHistory(boardId);
+
+  if (!hist || !hist.times || hist.times.length === 0) {
+    return null; // no history yet
+  }
+
+  const labels = hist.times.map((t) => {
+    const d = new Date(t);
+    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  });
+
+  const datasets = hist.series.map((s, i) => {
+    const color = SERIES_COLORS[i % SERIES_COLORS.length];
+    return {
+      label: s.name,
+      data: s.data,
+      borderColor: color,
+      backgroundColor: color,
+      tension: 0.25,
+      spanGaps: true,
+      pointRadius: 2,
+      borderWidth: 2,
+    };
+  });
+
+  return { type: 'line', data: { labels, datasets }, __isTime: true };
+}
+
+async function renderChart() {
   if (!currentStats) return;
 
   if (!hasChart) {
@@ -278,21 +315,42 @@ function renderChart() {
     return;
   }
 
+  let cfg;
+  if (selectedChart === 'overTime') {
+    cfg = await buildOverTimeConfig();
+    if (!cfg) {
+      // Not enough history recorded yet.
+      chartCanvas.hidden = true;
+      chartFallback.hidden = false;
+      chartFallback.textContent =
+        'No history yet. This chart fills in as you refresh over time — each refresh records a snapshot of the card counts per column.';
+      return;
+    }
+  } else {
+    cfg = chartConfig();
+  }
+
   chartCanvas.hidden = false;
   chartFallback.hidden = true;
 
-  const cfg = chartConfig();
+  const usesAxes = cfg.type === 'bar' || cfg.type === 'line';
   cfg.options = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#e6e6ea', font: { size: 10 } } } },
-    scales:
-      cfg.type === 'bar'
-        ? {
-            x: { ticks: { color: '#b9b9c0', font: { size: 9 } }, grid: { display: false } },
-            y: { ticks: { color: '#b9b9c0', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.08)' }, beginAtZero: true },
-          }
-        : {},
+    interaction: cfg.__isTime ? { mode: 'index', intersect: false } : undefined,
+    plugins: {
+      legend: {
+        display: cfg.type !== 'bar', // bar charts have a single series
+        labels: { color: '#e6e6ea', font: { size: 10 }, boxWidth: 12 },
+        position: cfg.__isTime ? 'bottom' : 'top',
+      },
+    },
+    scales: usesAxes
+      ? {
+          x: { ticks: { color: '#b9b9c0', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 5 }, grid: { display: false } },
+          y: { ticks: { color: '#b9b9c0', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.08)' }, beginAtZero: true },
+        }
+      : {},
   };
 
   if (chartInstance) chartInstance.destroy();

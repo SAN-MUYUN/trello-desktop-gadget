@@ -7,7 +7,8 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 🪟 **Single translucent window** — frameless, always-on-top, draggable, with Windows 11 **Mica** background material (Acrylic fallback).
 - 📋 **Gadget view** — compact cards for the columns you choose.
 - 🔽 **Column dropdown** — pick which column(s) to display.
-- 📊 **Stats view** — toggle in the same window; shows 1–2 charts at a time.
+- 📊 **Stats view** — toggle in the same window; shows one chart at a time (cards per column, **cards per column over time**, status breakdown, cards per label).
+- 📈 **History over time** — each refresh records a timestamped snapshot of per-column card counts to a local file, so the "over time" chart shows how columns change (a lightweight cumulative-flow view). History persists across restarts.
 - 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
