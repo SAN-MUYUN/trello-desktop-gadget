@@ -57,4 +57,40 @@ function setMockCardComplete(cardId, value) {
   return { id: card.id, dueComplete: card.dueComplete };
 }
 
-module.exports = { getMockBoards, getMockBoard, setMockCardComplete };
+// Update editable fields (name/desc/due) on a mock card.
+function updateMockCard(cardId, fields) {
+  const card = MOCK_BOARD.cards.find((c) => c.id === cardId);
+  if (!card) throw new Error(`Mock card not found: ${cardId}`);
+  if (fields.name != null) card.name = fields.name;
+  if (fields.desc != null) card.desc = fields.desc;
+  if (fields.due !== undefined) card.due = fields.due || null;
+  return JSON.parse(JSON.stringify(card));
+}
+
+let mockSeq = 100;
+// Create a new mock card in a given list.
+function createMockCard(fields) {
+  if (!fields || !fields.idList) throw new Error('createMockCard: idList required');
+  if (!MOCK_BOARD.lists.some((l) => l.id === fields.idList)) {
+    throw new Error(`Mock list not found: ${fields.idList}`);
+  }
+  const card = {
+    id: 'm' + ++mockSeq,
+    name: fields.name || 'New card',
+    idList: fields.idList,
+    due: fields.due || null,
+    dueComplete: false,
+    desc: fields.desc || '',
+    labels: [],
+  };
+  MOCK_BOARD.cards.push(card);
+  return JSON.parse(JSON.stringify(card));
+}
+
+module.exports = {
+  getMockBoards,
+  getMockBoard,
+  setMockCardComplete,
+  updateMockCard,
+  createMockCard,
+};

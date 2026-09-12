@@ -12,6 +12,9 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
 - 🖥️ **Taskbar + system tray** — shows in the taskbar so it minimizes/restores normally, and a tray icon lets you show/quit the gadget anytime.
 - ✅ **Mark cards complete** — a checkbox on each card toggles its complete state and saves it back to Trello (`PUT /1/cards/{id}` `dueComplete`). Optimistic UI with rollback on failure. *(Requires a token with **write** scope; a read-only token returns a clear 403 message.)*
+- ✏️ **Edit cards** — click a card to open an editor for its **title, description, and due date** (`PUT /1/cards/{id}`). The complete checkbox has its own click zone, so clicking it doesn't open the editor.
+- ➕ **Add cards** — each column has a **+ Add card** button; pick the column, enter title (and optional description/due), and it's created via `POST /1/cards`.
+- 🎨 **Theme presets** — pick from contrast-safe color schemes (Kiro Dark Blue, Midnight, Slate, Forest, Light) in Settings; applied live and remembered.
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
 ## Requirements

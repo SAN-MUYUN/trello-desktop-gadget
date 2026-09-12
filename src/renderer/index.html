@@ -73,6 +73,13 @@
             <button id="settingsClose" class="ctrl" aria-label="Close settings">✕</button>
           </div>
 
+          <label class="field">
+            <span>Theme</span>
+            <select id="themeSelect" class="select"></select>
+          </label>
+
+          <hr class="settings-sep" />
+
           <p class="hint">
             Enter your own Trello API key and token. They're stored encrypted on
             this computer and never leave it.
@@ -107,10 +114,48 @@
           <button id="clearBtn" class="linkbtn danger" type="button">Clear saved credentials</button>
         </div>
       </div>
+
+      <!-- CARD EDITOR OVERLAY (edit + add) -->
+      <div id="cardOverlay" class="overlay" hidden>
+        <div class="settings-panel">
+          <div class="settings-head">
+            <span id="cardEditorTitle">Edit card</span>
+            <button id="cardClose" class="ctrl" aria-label="Close editor">✕</button>
+          </div>
+
+          <label class="field">
+            <span>Title</span>
+            <input id="cardTitleInput" type="text" autocomplete="off" placeholder="Card title" />
+          </label>
+
+          <label class="field" id="cardColumnField" hidden>
+            <span>Column</span>
+            <select id="cardColumnSelect" class="select"></select>
+          </label>
+
+          <label class="field">
+            <span>Description</span>
+            <textarea id="cardDescInput" rows="4" placeholder="Description (optional)"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Due date <em>(optional)</em></span>
+            <input id="cardDueInput" type="date" />
+          </label>
+
+          <div id="cardMsg" class="settings-msg"></div>
+
+          <div class="settings-actions">
+            <button id="cardCancel" class="btn" type="button">Cancel</button>
+            <button id="cardSave" class="btn primary" type="button">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Chart.js is loaded from node_modules after `npm install`. -->
     <script src="../../node_modules/chart.js/dist/chart.umd.js"></script>
+    <script src="themes.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

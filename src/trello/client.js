@@ -1,6 +1,12 @@
 'use strict';
 
-const { getMockBoard, getMockBoards, setMockCardComplete } = require('./mock');
+const {
+  getMockBoard,
+  getMockBoards,
+  setMockCardComplete,
+  updateMockCard,
+  createMockCard,
+} = require('./mock');
 
 const API_BASE = 'https://api.trello.com/1';
 
@@ -126,7 +132,7 @@ async function getBoardData(boardId) {
   const [board, lists, cards] = await Promise.all([
     trelloFetch(`/boards/${id}?fields=name`),
     trelloFetch(`/boards/${id}/lists?fields=name`),
-    trelloFetch(`/boards/${id}/cards?fields=name,idList,due,dueComplete,labels`),
+    trelloFetch(`/boards/${id}/cards?fields=name,idList,due,dueComplete,desc,labels`),
   ]);
 
   return {
@@ -139,6 +145,7 @@ async function getBoardData(boardId) {
       idList: c.idList,
       due: c.due || null,
       dueComplete: Boolean(c.dueComplete),
+      desc: c.desc || '',
       labels: Array.isArray(c.labels)
         ? c.labels.map((lb) => ({ name: lb.name, color: lb.color }))
         : [],
@@ -164,6 +171,73 @@ async function setCardComplete(cardId, value) {
     'PUT'
   );
   return { id: res.id, dueComplete: Boolean(res.dueComplete) };
+}
+
+// Build a query string from field params (only include provided fields).
+function encodeParams(params) {
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+}
+
+/**
+ * Edit a card's title/description/due date.
+ * fields: { name?, desc?, due? }  (due: ISO string or '' to clear)
+ * Returns the normalized updated card.
+ */
+async function updateCard(cardId, fields = {}) {
+  if (!cardId) throw new Error('updateCard: missing cardId');
+
+  const params = {};
+  if (fields.name != null) params.name = fields.name;
+  if (fields.desc != null) params.desc = fields.desc;
+  if (fields.due !== undefined) params.due = fields.due || ''; // '' clears the due date
+
+  if (useMock()) {
+    return updateMockCard(cardId, fields);
+  }
+
+  const qs = encodeParams(params);
+  const res = await trelloFetch(`/cards/${cardId}?${qs}`, 'PUT');
+  return {
+    id: res.id,
+    name: res.name,
+    idList: res.idList,
+    due: res.due || null,
+    dueComplete: Boolean(res.dueComplete),
+    desc: res.desc || '',
+  };
+}
+
+/**
+ * Create a new card in a list.
+ * fields: { name, idList, desc?, due? }
+ * Returns the normalized new card.
+ */
+async function createCard(fields = {}) {
+  if (!fields.idList) throw new Error('createCard: idList (column) is required');
+  if (!fields.name) throw new Error('createCard: name is required');
+
+  if (useMock()) {
+    return createMockCard(fields);
+  }
+
+  const params = { name: fields.name, idList: fields.idList };
+  if (fields.desc) params.desc = fields.desc;
+  if (fields.due) params.due = fields.due;
+
+  const qs = encodeParams(params);
+  const res = await trelloFetch(`/cards?${qs}`, 'POST');
+  return {
+    id: res.id,
+    name: res.name,
+    idList: res.idList,
+    due: res.due || null,
+    dueComplete: Boolean(res.dueComplete),
+    desc: res.desc || '',
+    labels: [],
+  };
 }
 
 /**
@@ -200,6 +274,8 @@ module.exports = {
   getBoards,
   getBoardData,
   setCardComplete,
+  updateCard,
+  createCard,
   testConnection,
   setCredentials,
   getCredentials,

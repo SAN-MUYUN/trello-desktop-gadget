@@ -11,7 +11,7 @@ try {
 }
 
 const client = require('../trello/client');
-const { getBoardData, getBoards, setCardComplete, useMock } = client;
+const { getBoardData, getBoards, setCardComplete, updateCard, createCard, useMock } = client;
 const { computeStats } = require('../stats/compute');
 const history = require('../history/store');
 const settings = require('../settings/store');
@@ -163,6 +163,14 @@ ipcMain.handle('card:setComplete', async (_event, cardId, value) => {
   return setCardComplete(cardId, value);
 });
 
+ipcMain.handle('card:update', async (_event, cardId, fields) => {
+  return updateCard(cardId, fields || {});
+});
+
+ipcMain.handle('card:create', async (_event, fields) => {
+  return createCard(fields || {});
+});
+
 // ---- Settings ----
 ipcMain.handle('settings:get', async () => {
   const stored = settings.load();
@@ -174,6 +182,7 @@ ipcMain.handle('settings:get', async () => {
     apiKey: apiKey || '',
     tokenHint: token ? `${token.slice(0, 4)}…${token.slice(-4)}` : '',
     boardId: boardId || '',
+    theme: stored.theme || '',
     usingMock: useMock(),
     source: stored.apiKey ? 'settings' : (process.env.TRELLO_API_KEY ? 'env' : 'none'),
   };
@@ -186,6 +195,7 @@ ipcMain.handle('settings:save', async (_event, payload) => {
     // Only overwrite the token if a new non-empty one was provided.
     token: (payload && payload.token ? payload.token : current.token) || '',
     boardId: (payload && payload.boardId != null ? payload.boardId : current.boardId) || '',
+    theme: (payload && payload.theme != null ? payload.theme : current.theme) || '',
   };
   const ok = settings.save(next);
   loadCredentials();

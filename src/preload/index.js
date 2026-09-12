@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('gadget', {
   getHistory: (boardId) => ipcRenderer.invoke('history:get', boardId),
   clearHistory: (boardId) => ipcRenderer.invoke('history:clear', boardId),
   setCardComplete: (cardId, value) => ipcRenderer.invoke('card:setComplete', cardId, value),
+  updateCard: (cardId, fields) => ipcRenderer.invoke('card:update', cardId, fields),
+  createCard: (fields) => ipcRenderer.invoke('card:create', fields),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),

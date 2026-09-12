@@ -94,11 +94,28 @@ const tokenInput = el('tokenInput');
 const boardIdInput = el('boardIdInput');
 const settingsMsg = el('settingsMsg');
 
+const themeSelect = el('themeSelect');
+let savedTheme = window.gadgetThemes.DEFAULT_THEME;
+
+// Populate theme options once.
+for (const t of window.gadgetThemes.themeList()) {
+  const opt = document.createElement('option');
+  opt.value = t.id;
+  opt.textContent = t.label;
+  themeSelect.appendChild(opt);
+}
+// Live preview when the user changes the dropdown.
+themeSelect.addEventListener('change', (e) => {
+  window.gadgetThemes.applyTheme(e.target.value);
+});
+
 async function openSettings() {
   settingsMsg.textContent = '';
   settingsMsg.className = 'settings-msg';
   try {
     const s = await window.gadget.getSettings();
+    savedTheme = s.theme || window.gadgetThemes.DEFAULT_THEME;
+    themeSelect.value = savedTheme;
     apiKeyInput.value = s.apiKey || '';
     tokenInput.value = ''; // never prefill the token
     tokenInput.placeholder = s.hasToken
@@ -115,6 +132,9 @@ async function openSettings() {
 }
 
 function closeSettings() {
+  // Revert any live theme preview back to the saved theme on close/cancel.
+  window.gadgetThemes.applyTheme(savedTheme);
+  themeSelect.value = savedTheme;
   settingsOverlay.hidden = true;
 }
 
@@ -154,6 +174,7 @@ el('saveBtn').addEventListener('click', async () => {
   const payload = {
     apiKey: apiKeyInput.value.trim(),
     boardId: boardIdInput.value.trim(),
+    theme: themeSelect.value,
   };
   const tk = tokenInput.value.trim();
   if (tk) payload.token = tk; // only send if provided
@@ -161,9 +182,11 @@ el('saveBtn').addEventListener('click', async () => {
   if (res.ok) {
     settingsMsg.textContent = '✓ Saved. Refreshing…';
     settingsMsg.className = 'settings-msg ok';
+    savedTheme = themeSelect.value; // commit the chosen theme
+    window.gadgetThemes.applyTheme(savedTheme);
     boardsLoaded = false; // re-list boards with new creds
     selectedBoardId = boardIdInput.value.trim();
-    closeSettings();
+    settingsOverlay.hidden = true; // close without reverting theme
     await refresh();
   } else {
     settingsMsg.textContent = 'Could not save settings.';
@@ -291,7 +314,10 @@ function renderColumns() {
       toggle.title = card.dueComplete ? 'Mark incomplete' : 'Mark complete';
       toggle.setAttribute('aria-label', toggle.title);
       toggle.textContent = card.dueComplete ? '✓' : '';
-      toggle.addEventListener('click', () => onToggleComplete(card, c, toggle));
+      toggle.addEventListener('click', (ev) => {
+        ev.stopPropagation(); // checkbox is its own click zone
+        onToggleComplete(card, c, toggle);
+      });
       head.appendChild(toggle);
 
       const name = document.createElement('div');
@@ -318,8 +344,20 @@ function renderColumns() {
       }
 
       if (meta.childNodes.length) c.appendChild(meta);
+
+      // Click anywhere on the card (except the checkbox) to edit it.
+      c.addEventListener('click', () => openCardEditor(card));
+
       col.appendChild(c);
     }
+
+    // "Add card" button for this column.
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-card';
+    addBtn.type = 'button';
+    addBtn.textContent = '+ Add card';
+    addBtn.addEventListener('click', () => openCardCreator(list.id));
+    col.appendChild(addBtn);
 
     columnsEl.appendChild(col);
   }
@@ -380,6 +418,123 @@ function recomputeStatsFromBoard() {
   currentStats.completed = completed;
   currentStats.overdue = overdue;
 }
+
+// ---- Card editor (edit + add) ----
+const cardOverlay = el('cardOverlay');
+const cardEditorTitle = el('cardEditorTitle');
+const cardTitleInput = el('cardTitleInput');
+const cardColumnField = el('cardColumnField');
+const cardColumnSelect = el('cardColumnSelect');
+const cardDescInput = el('cardDescInput');
+const cardDueInput = el('cardDueInput');
+const cardMsg = el('cardMsg');
+
+let editorMode = 'edit'; // 'edit' | 'create'
+let editingCardId = null;
+
+// Convert an ISO datetime to yyyy-mm-dd for the <input type="date">.
+function isoToDateInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+// Convert a yyyy-mm-dd date input to an ISO string (or '' to clear).
+function dateInputToIso(val) {
+  if (!val) return '';
+  const d = new Date(val + 'T12:00:00'); // noon avoids TZ day-shift
+  return isNaN(d) ? '' : d.toISOString();
+}
+
+function openCardEditor(card) {
+  editorMode = 'edit';
+  editingCardId = card.id;
+  cardEditorTitle.textContent = 'Edit card';
+  cardTitleInput.value = card.name || '';
+  cardDescInput.value = card.desc || '';
+  cardDueInput.value = isoToDateInput(card.due);
+  cardColumnField.hidden = true; // no column change on edit (no move)
+  cardMsg.textContent = '';
+  cardMsg.className = 'settings-msg';
+  cardOverlay.hidden = false;
+  cardTitleInput.focus();
+}
+
+function openCardCreator(listId) {
+  editorMode = 'create';
+  editingCardId = null;
+  cardEditorTitle.textContent = 'Add card';
+  cardTitleInput.value = '';
+  cardDescInput.value = '';
+  cardDueInput.value = '';
+
+  // Populate the column picker (defaults to the column the + was clicked in).
+  cardColumnSelect.innerHTML = '';
+  for (const list of currentBoard.lists) {
+    const opt = document.createElement('option');
+    opt.value = list.id;
+    opt.textContent = list.name;
+    cardColumnSelect.appendChild(opt);
+  }
+  cardColumnSelect.value = listId || (currentBoard.lists[0] && currentBoard.lists[0].id);
+  cardColumnField.hidden = false;
+
+  cardMsg.textContent = '';
+  cardMsg.className = 'settings-msg';
+  cardOverlay.hidden = false;
+  cardTitleInput.focus();
+}
+
+function closeCardEditor() {
+  cardOverlay.hidden = true;
+}
+
+async function saveCardEditor() {
+  const title = cardTitleInput.value.trim();
+  if (!title) {
+    cardMsg.textContent = 'Title is required.';
+    cardMsg.className = 'settings-msg err';
+    return;
+  }
+  const saveBtn = el('cardSave');
+  saveBtn.disabled = true;
+  cardMsg.textContent = 'Saving…';
+  cardMsg.className = 'settings-msg';
+
+  const due = dateInputToIso(cardDueInput.value);
+
+  try {
+    if (editorMode === 'create') {
+      await window.gadget.createCard({
+        name: title,
+        idList: cardColumnSelect.value,
+        desc: cardDescInput.value,
+        due: due || undefined,
+      });
+    } else {
+      await window.gadget.updateCard(editingCardId, {
+        name: title,
+        desc: cardDescInput.value,
+        due, // '' clears the date
+      });
+    }
+    closeCardEditor();
+    status.textContent = 'Saved. Refreshing…';
+    await refresh(); // re-fetch so the board + stats reflect the change
+  } catch (err) {
+    cardMsg.textContent = 'Error: ' + (err && err.message ? err.message : err);
+    cardMsg.className = 'settings-msg err';
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+el('cardClose').addEventListener('click', closeCardEditor);
+el('cardCancel').addEventListener('click', closeCardEditor);
+el('cardSave').addEventListener('click', saveCardEditor);
 
 // ---- Stats rendering ----
 function renderSummary() {
@@ -531,6 +686,15 @@ function escapeHtml(str) {
 
 // ---- Bootstrap ----
 async function init() {
+  // Apply the saved theme before anything renders.
+  try {
+    const s0 = await window.gadget.getSettings();
+    savedTheme = s0.theme || window.gadgetThemes.DEFAULT_THEME;
+    window.gadgetThemes.applyTheme(savedTheme);
+  } catch (_e) {
+    window.gadgetThemes.applyTheme(window.gadgetThemes.DEFAULT_THEME);
+  }
+
   // Initial load so the window isn't empty on open.
   await refresh();
 

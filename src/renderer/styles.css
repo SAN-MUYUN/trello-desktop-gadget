@@ -37,9 +37,8 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  /* Solid dark-blue gradient panel (Kiro-like). Slight translucency
-     for a subtle glassy feel while keeping text readable. */
-  background: linear-gradient(160deg, rgba(20, 22, 43, 0.97) 0%, rgba(15, 16, 32, 0.97) 100%);
+  /* Panel background comes from the active theme (see themes.js). */
+  background: var(--gadget-bg, linear-gradient(160deg, rgba(20, 22, 43, 0.97) 0%, rgba(15, 16, 32, 0.97) 100%));
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
@@ -412,9 +411,41 @@ body {
   color: var(--fg);
   font-size: 12px;
 }
-.field input:focus {
+.field textarea {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
   outline: none;
   border-color: var(--accent);
+}
+/* Add-card button per column */
+.add-card {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  font-size: 11px;
+}
+.add-card:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+  background: var(--panel);
+}
+.card {
+  cursor: pointer;
 }
 .settings-links {
   display: flex;
@@ -434,6 +465,11 @@ body {
 }
 .linkbtn.danger {
   color: var(--danger);
+}
+.settings-sep {
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  margin: 2px 0;
 }
 .settings-msg {
   font-size: 11px;
