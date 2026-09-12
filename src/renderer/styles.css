@@ -513,13 +513,7 @@ body {
 
 
 /* ---- Radial menu (card actions) ---- */
-/* When expanded, the panel is positioned explicitly inside the enlarged,
-   transparent window so it stays visually put while the ring fans out. */
-body.expanded #app.gadget {
-  position: absolute;
-  height: auto;
-}
-
+/* Option B: the ring stays inside the panel — no window resizing. */
 .radial-backdrop {
   position: fixed;
   inset: 0;

@@ -12,7 +12,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
 - 🖥️ **Taskbar + system tray** — shows in the taskbar so it minimizes/restores normally, and a tray icon lets you show/quit the gadget anytime.
 - ✅ **Mark cards complete** — a checkbox on each card toggles its complete state and saves it back to Trello (`PUT /1/cards/{id}` `dueComplete`). Optimistic UI with rollback on failure. *(Requires a token with **write** scope; a read-only token returns a clear 403 message.)*
-- 🥧 **Radial (pie) menu** — click a card and a ring of actions **fans out** (Edit / Complete / Due), spilling **beyond the panel edge**: the window briefly expands into transparent padding so the ring isn't clipped, then shrinks back on close. Center **✕**, click-outside, or **Esc** closes it.
+- 🥧 **Radial (pie) menu** — click a card and a ring of actions **fans out** (Edit / Complete / Due). The ring stays within the panel and auto-positions near edges so it never clips or glitches. Center **✕**, click-outside, or **Esc** closes it.
 - ✏️ **Edit cards** — from the radial menu, **Edit** opens an editor for **title, description, and due date** (`PUT /1/cards/{id}`). The complete checkbox has its own click zone.
 - ➕ **Add cards** — each column has a **+ Add card** button; pick the column, enter title (and optional description/due), and it's created via `POST /1/cards`.
 - 🎨 **Theme presets** — pick from contrast-safe color schemes (Kiro Dark Blue, Midnight, Slate, Forest, Light) in Settings; applied live and remembered.

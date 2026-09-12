@@ -425,15 +425,14 @@ const radialCenter = el('radialCenter');
 const radialBackdrop = el('radialBackdrop');
 const appEl = el('app');
 
-const RADIAL_PAD = 90; // px the window grows on each side while open
-const RADIAL_RADIUS = 82; // how far segments fan out from the center
+const SEG_HALF = 33; // half the segment box size (see .seg width/height in CSS)
+const EDGE_MARGIN = 8; // keep segments this far from the panel edge
 
 let radialOpen = false;
 let radialCard = null;
 let radialSegEls = [];
-let panelOffset = { x: 0, y: 0 }; // where the panel sits inside the enlarged window
 
-// Segments shown on a card. `dynamicLabel` lets Complete flip its label.
+// Segments shown on a card.
 function radialSegments(card) {
   return [
     { key: 'edit', label: 'Edit', ico: '✎' },
@@ -447,54 +446,61 @@ function radialSegments(card) {
   ];
 }
 
-async function openRadial(card, cardEl) {
+// Option B: the ring stays INSIDE the panel. We pick a radius and center
+// that keep every segment within the panel bounds (no window resize, no clip).
+function openRadial(card, cardEl) {
   if (radialOpen) return;
   radialOpen = true;
   radialCard = card;
 
-  // Capture the card center in the CURRENT (un-expanded) window coordinates.
+  const panel = appEl.getBoundingClientRect();
   const rect = cardEl.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
 
-  // Expand the OS window so the ring can fan out past the panel edge.
-  let off = { pad: RADIAL_PAD, offsetX: RADIAL_PAD, offsetY: RADIAL_PAD };
-  try {
-    const res = await window.gadget.expandWindow(RADIAL_PAD);
-    if (res) off = res;
-  } catch (_e) {
-    /* if expand fails, ring still works but clips at the window edge */
-  }
+  // Desired center = card center, but clamp so the ring fits in the panel.
+  let cx = rect.left + rect.width / 2;
+  let cy = rect.top + rect.height / 2;
 
-  // Pin the panel where it visually was, inside the now-larger window.
-  panelOffset = { x: off.offsetX, y: off.offsetY };
-  const w = appEl.offsetWidth;
-  const h = appEl.offsetHeight;
-  document.body.classList.add('expanded');
-  appEl.style.left = off.offsetX + 'px';
-  appEl.style.top = off.offsetY + 'px';
-  appEl.style.width = w + 'px';
-  appEl.style.height = h + 'px';
-
-  // The click point, expressed in the enlarged window's coordinates.
-  const x = centerX + off.offsetX;
-  const y = centerY + off.offsetY;
-  radialEl.style.left = x + 'px';
-  radialEl.style.top = y + 'px';
-
-  // Build + animate the segments.
   const segs = radialSegments(card);
   const n = segs.length;
+
+  // Fan across a top arc so segments sit above the click point.
+  const spread = Math.PI * 1.1; // ~198°
+  const start = -Math.PI / 2 - spread / 2;
+  const angles = segs.map((_, i) =>
+    n === 1 ? -Math.PI / 2 : start + (spread / (n - 1)) * i
+  );
+
+  // Choose the largest radius (up to a cap) that keeps all segments inside
+  // the panel from this center; also nudge the center inward if needed.
+  const maxR = 84;
+  const minR = 44;
+  let radius = maxR;
+
+  // Space available around the (clamped) center.
+  function clampCenter() {
+    const halfSpan = radius + SEG_HALF + EDGE_MARGIN;
+    cx = Math.min(Math.max(cx, panel.left + halfSpan), panel.right - halfSpan);
+    // Segments fan upward, so we mostly need headroom above.
+    cy = Math.min(
+      Math.max(cy, panel.top + halfSpan),
+      panel.bottom - SEG_HALF - EDGE_MARGIN
+    );
+  }
+
+  // If the panel is too small for maxR, shrink the radius to fit width.
+  const availHalfWidth = (panel.width - 2 * (SEG_HALF + EDGE_MARGIN)) / 2;
+  if (availHalfWidth < radius) radius = Math.max(minR, availHalfWidth);
+  clampCenter();
+
+  radialEl.style.left = cx + 'px';
+  radialEl.style.top = cy + 'px';
+
   radialSegEls = segs.map((s, i) => {
     const seg = document.createElement('div');
     seg.className = 'seg' + (s.on ? ' on' : '');
     seg.innerHTML = `<span class="ico">${s.ico}</span><span>${escapeHtml(s.label)}</span>`;
-    // Fan across the top arc so segments avoid the panel body below.
-    const spread = Math.PI * 1.2; // ~216° arc
-    const start = -Math.PI / 2 - spread / 2;
-    const angle = n === 1 ? -Math.PI / 2 : start + (spread / (n - 1)) * i;
-    const tx = Math.cos(angle) * RADIAL_RADIUS;
-    const ty = Math.sin(angle) * RADIAL_RADIUS;
+    const tx = Math.cos(angles[i]) * radius;
+    const ty = Math.sin(angles[i]) * radius;
     seg.addEventListener('click', (ev) => {
       ev.stopPropagation();
       onRadialSegment(s.key);
@@ -513,26 +519,15 @@ async function openRadial(card, cardEl) {
   radialBackdrop.classList.add('show');
 }
 
-async function closeRadial() {
-  if (!radialOpen) return;
+function closeRadial() {
+  if (!radialOpen) return Promise.resolve();
   radialOpen = false;
   radialSegEls.forEach((s) => s.remove());
   radialSegEls = [];
   radialEl.classList.remove('open');
   radialBackdrop.classList.remove('show');
-
-  // Un-pin the panel and shrink the window back.
-  document.body.classList.remove('expanded');
-  appEl.style.left = '';
-  appEl.style.top = '';
-  appEl.style.width = '';
-  appEl.style.height = '';
-  try {
-    await window.gadget.restoreWindow();
-  } catch (_e) {
-    /* ignore */
-  }
   radialCard = null;
+  return Promise.resolve();
 }
 
 function onRadialSegment(key) {
