@@ -5,7 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose a minimal, safe API to the renderer. No Node access leaks through.
 contextBridge.exposeInMainWorld('gadget', {
   // Data
-  getBoard: () => ipcRenderer.invoke('board:get'),
+  getBoard: (boardId) => ipcRenderer.invoke('board:get', boardId),
   listBoards: () => ipcRenderer.invoke('boards:list'),
 
   // Live updates pushed from the main process (polling).

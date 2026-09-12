@@ -68,8 +68,8 @@ function createWindow() {
 
 // ---- IPC handlers (renderer -> main) ----
 
-ipcMain.handle('board:get', async () => {
-  const board = await getBoardData();
+ipcMain.handle('board:get', async (_event, boardId) => {
+  const board = await getBoardData(boardId);
   const stats = computeStats(board);
   return { board, stats };
 });

@@ -5,12 +5,15 @@ let currentBoard = null;
 let currentStats = null;
 let selectedColumn = '__all__';
 let selectedChart = 'cardsPerList';
+let selectedBoardId = ''; // '' = let the app pick your first board
+let boardsLoaded = false;
 let chartInstance = null;
 
 // ---- Elements ----
 const el = (id) => document.getElementById(id);
 const boardTitle = el('boardTitle');
 const status = el('status');
+const boardSelect = el('boardSelect');
 const columnSelect = el('columnSelect');
 const columnsEl = el('columns');
 const chartSelect = el('chartSelect');
@@ -54,8 +57,19 @@ async function refresh() {
   refreshBtn.disabled = true;
   status.textContent = 'Refreshing…';
   try {
-    const payload = await window.gadget.getBoard();
+    // Load the list of boards once (for the picker).
+    if (!boardsLoaded) {
+      await loadBoards();
+    }
+    const payload = await window.gadget.getBoard(selectedBoardId || undefined);
     applyData(payload);
+    // Sync picker to whatever board actually loaded.
+    if (payload.board && payload.board.id) {
+      selectedBoardId = payload.board.id;
+      if (boardSelect.querySelector(`option[value="${payload.board.id}"]`)) {
+        boardSelect.value = payload.board.id;
+      }
+    }
   } catch (err) {
     status.textContent = 'Error: ' + (err && err.message ? err.message : err);
   } finally {
@@ -66,6 +80,36 @@ async function refresh() {
 }
 
 refreshBtn.addEventListener('click', refresh);
+
+// ---- Board picker ----
+async function loadBoards() {
+  try {
+    const boards = await window.gadget.listBoards();
+    boardSelect.innerHTML = '';
+    if (!boards || !boards.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No boards';
+      boardSelect.appendChild(opt);
+    } else {
+      for (const b of boards) {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name;
+        boardSelect.appendChild(opt);
+      }
+    }
+    boardsLoaded = true;
+  } catch (err) {
+    // Non-fatal: the board itself may still load via fallback.
+    boardSelect.innerHTML = '<option value="">(couldn\'t list boards)</option>';
+  }
+}
+
+boardSelect.addEventListener('change', (e) => {
+  selectedBoardId = e.target.value;
+  refresh();
+});
 
 // ---- Selectors ----
 columnSelect.addEventListener('change', (e) => {

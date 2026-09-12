@@ -46,9 +46,15 @@ async function getBoards() {
 async function getBoardData(boardId) {
   if (useMock()) return getMockBoard();
 
-  const id = boardId || process.env.TRELLO_BOARD_ID;
+  let id = boardId || process.env.TRELLO_BOARD_ID;
+
+  // If no board was specified, fall back to the first board the user has.
   if (!id) {
-    throw new Error('No board selected. Set TRELLO_BOARD_ID or pass a board id.');
+    const boards = await getBoards();
+    if (!boards.length) {
+      throw new Error('No boards found for this Trello account.');
+    }
+    id = boards[0].id;
   }
 
   const [board, lists, cards] = await Promise.all([
