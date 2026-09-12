@@ -283,7 +283,10 @@ async function buildOverTimeConfig() {
 
   const labels = hist.times.map((t) => {
     const d = new Date(t);
-    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    // Daily buckets -> date only; hourly -> date + hour.
+    return hist.granularity === 'hour'
+      ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' })
+      : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   });
 
   const datasets = hist.series.map((s, i) => {

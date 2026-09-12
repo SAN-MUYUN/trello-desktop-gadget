@@ -8,7 +8,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 📋 **Gadget view** — compact cards for the columns you choose.
 - 🔽 **Column dropdown** — pick which column(s) to display.
 - 📊 **Stats view** — toggle in the same window; shows one chart at a time (cards per column, **cards per column over time**, status breakdown, cards per label).
-- 📈 **History over time** — each refresh records a timestamped snapshot of per-column card counts to a local file, so the "over time" chart shows how columns change (a lightweight cumulative-flow view). History persists across restarts.
+- 📈 **History over time** — the app records per-column card counts to a local file, **bucketed by day** (configurable to hourly via `HISTORY_BUCKET`). Each refresh updates the current bucket, so you get one clean, regularly-spaced point per day regardless of how often you refresh. The "over time" chart plots these as a lightweight cumulative-flow view; history persists across restarts.
 - 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
