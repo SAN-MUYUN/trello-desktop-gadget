@@ -56,10 +56,10 @@ function createWindow() {
     // Gadget look: no OS chrome.
     frame: false,
     transparent: true,
-    // Solid dark base so text stays readable; the renderer paints a
-    // dark-blue Kiro-style panel on top. (Mica let the desktop bleed
-    // through and killed contrast.)
-    backgroundColor: '#0f1020',
+    // Fully transparent window so only the rounded panel (drawn by the
+    // renderer) is visible — the area outside the border-radius is truly
+    // see-through, avoiding a squarish backdrop behind the rounded corners.
+    backgroundColor: '#00000000',
     // Keep the gadget floating above other windows.
     alwaysOnTop: true,
     // Show in the taskbar so it can be minimized/restored normally.
