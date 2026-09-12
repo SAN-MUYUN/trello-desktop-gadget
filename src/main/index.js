@@ -20,7 +20,9 @@ let mainWindow = null;
 /** @type {NodeJS.Timeout | null} */
 let pollTimer = null;
 
-const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 60000);
+// Default 0 = manual refresh only. Set a positive value (ms) in .env to
+// re-enable automatic background polling.
+const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 0);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -91,9 +93,13 @@ ipcMain.handle('window:minimize', () => {
   if (mainWindow) mainWindow.minimize();
 });
 
-// Push periodic refreshes to the renderer.
+// Optional periodic refresh. Disabled when POLL_INTERVAL_MS <= 0 (the
+// default), so the app only refreshes on demand (Refresh button / actions).
 function startPolling() {
   stopPolling();
+  if (!Number.isFinite(POLL_INTERVAL_MS) || POLL_INTERVAL_MS <= 0) {
+    return; // manual-refresh mode
+  }
   pollTimer = setInterval(async () => {
     if (!mainWindow) return;
     try {

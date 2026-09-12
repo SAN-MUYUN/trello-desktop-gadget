@@ -43,6 +43,30 @@ el('pinBtn').addEventListener('click', async () => {
 el('minBtn').addEventListener('click', () => window.gadget.minimize());
 el('closeBtn').addEventListener('click', () => window.gadget.close());
 
+// ---- Manual refresh ----
+const refreshBtn = el('refreshBtn');
+let refreshing = false;
+
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  refreshBtn.classList.add('spinning');
+  refreshBtn.disabled = true;
+  status.textContent = 'Refreshing…';
+  try {
+    const payload = await window.gadget.getBoard();
+    applyData(payload);
+  } catch (err) {
+    status.textContent = 'Error: ' + (err && err.message ? err.message : err);
+  } finally {
+    refreshing = false;
+    refreshBtn.classList.remove('spinning');
+    refreshBtn.disabled = false;
+  }
+}
+
+refreshBtn.addEventListener('click', refresh);
+
 // ---- Selectors ----
 columnSelect.addEventListener('change', (e) => {
   selectedColumn = e.target.value;
@@ -244,13 +268,10 @@ function escapeHtml(str) {
 
 // ---- Bootstrap ----
 async function init() {
-  try {
-    const payload = await window.gadget.getBoard();
-    applyData(payload);
-  } catch (err) {
-    status.textContent = 'Error: ' + (err && err.message ? err.message : err);
-  }
+  // Initial load so the window isn't empty on open.
+  await refresh();
 
+  // If auto-polling is enabled in .env, the main process will push updates.
   window.gadget.onBoardUpdate((payload) => applyData(payload));
   window.gadget.onBoardError((msg) => {
     status.textContent = 'Error: ' + msg;

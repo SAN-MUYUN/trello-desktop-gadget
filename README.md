@@ -8,6 +8,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 📋 **Gadget view** — compact cards for the columns you choose.
 - 🔽 **Column dropdown** — pick which column(s) to display.
 - 📊 **Stats view** — toggle in the same window; shows 1–2 charts at a time.
+- 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
 ## Requirements
