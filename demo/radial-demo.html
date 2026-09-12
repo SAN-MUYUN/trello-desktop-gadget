@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Radial Menu Demo</title>
+    <style>
+      :root {
+        --fg: #ececf4;
+        --fg-dim: #a8abc7;
+        --accent: #a78bfa;
+        --accent-soft: #7c5cff;
+        --ok: #4fdda3;
+        --bg-2: #14162b;
+        --bg-3: #1b1e38;
+        --border: rgba(167, 139, 250, 0.35);
+        --ring: rgba(124, 92, 255, 0.92);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+        flex-wrap: wrap;
+        /* desktop-ish backdrop so transparency/overflow reads clearly */
+        background:
+          radial-gradient(1200px 800px at 20% 10%, #2a3350, #0b0d18 60%),
+          #0b0d18;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: var(--fg);
+        padding: 40px;
+      }
+
+      .note {
+        max-width: 320px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--fg-dim);
+      }
+      .note h1 { color: var(--fg); font-size: 16px; margin-bottom: 10px; }
+      .note b { color: var(--accent); }
+
+      /* Simulated gadget panel (the "box" the ring will spill out of). */
+      .panel {
+        position: relative;
+        width: 320px;
+        height: 420px;
+        background: linear-gradient(160deg, rgba(20,22,43,0.97), rgba(15,16,32,0.97));
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px;
+        /* NOTE: intentionally NOT overflow:hidden so the ring can spill out.
+           In the real app the ring lives in an unclipped layer above the panel. */
+      }
+      .panel h2 { font-size: 13px; margin-bottom: 12px; color: var(--fg); }
+
+      .card {
+        background: var(--bg-3);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.15s, transform 0.1s;
+      }
+      .card:hover { border-color: var(--accent); }
+      .card:active { transform: scale(0.99); }
+      .card small { display:block; color: var(--fg-dim); font-size: 11px; margin-top: 3px; }
+
+      /* ---- Radial menu ---- */
+      .radial {
+        position: fixed;
+        /* centered via JS at the clicked card's center */
+        width: 0; height: 0;
+        z-index: 100;
+        pointer-events: none;
+      }
+      .radial.open { pointer-events: auto; }
+
+      .radial-center {
+        position: absolute;
+        width: 54px; height: 54px;
+        left: -27px; top: -27px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #1b1030;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 18px;
+        box-shadow: 0 6px 20px rgba(124,92,255,0.5);
+        transform: scale(0);
+        transition: transform 0.25s cubic-bezier(.2,1.3,.4,1);
+      }
+      .radial.open .radial-center { transform: scale(1); }
+
+      .seg {
+        position: absolute;
+        width: 78px; height: 78px;
+        left: -39px; top: -39px;
+        border-radius: 14px;
+        background: var(--ring);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        /* start collapsed at the center */
+        transform: translate(0px, 0px) scale(0);
+        opacity: 0;
+        transition: transform 0.35s cubic-bezier(.2,1.2,.35,1), opacity 0.25s;
+      }
+      .seg .ico { font-size: 20px; line-height: 1; }
+      .seg:hover { background: var(--accent); }
+      .seg.on { background: var(--ok); color: #06281c; }
+
+      /* Backdrop to catch outside clicks */
+      .backdrop {
+        position: fixed; inset: 0; z-index: 90;
+        background: transparent;
+        display: none;
+      }
+      .backdrop.show { display: block; }
+
+      /* Fake editor popup (what "Edit" would open) */
+      .editor {
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(10,11,22,0.55);
+        display: none; align-items: center; justify-content: center;
+      }
+      .editor.show { display: flex; }
+      .editor-box {
+        width: 280px; background: var(--bg-2);
+        border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      }
+      .editor-box h3 { font-size: 14px; margin-bottom: 10px; }
+      .editor-box input, .editor-box textarea {
+        width: 100%; margin-bottom: 8px; padding: 7px 9px;
+        background: var(--bg-3); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--fg); font-size: 12px; font-family: inherit;
+      }
+      .editor-box button {
+        padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+        background: var(--accent-soft); color: #fff; cursor: pointer; font-size: 12px;
+      }
+      .toast {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: var(--bg-2); border: 1px solid var(--accent);
+        color: var(--fg); padding: 8px 16px; border-radius: 999px; font-size: 12px;
+        opacity: 0; transition: opacity 0.2s; z-index: 300;
+      }
+      .toast.show { opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <div class="note">
+      <h1>Radial menu — visual demo</h1>
+      <p><b>Click a card</b> → the ring <b>fans out</b> (segments sweep out with a stagger), and it deliberately spills <b>beyond the panel edge</b>.</p>
+      <p style="margin-top:10px"><b>Click a segment</b> to act:<br>
+      • <b>Edit</b> → opens a card editor popup<br>
+      • <b>Complete</b> → toggles (turns green)<br>
+      • <b>Due</b> → opens editor (due)</p>
+      <p style="margin-top:10px">Click outside or press <b>Esc</b> to close.</p>
+      <p style="margin-top:10px; font-size:12px; opacity:0.8">This is a browser preview of the look/interaction only — not wired to Trello.</p>
+    </div>
+
+    <div class="panel" id="panel">
+      <h2>My Trello board — Backlog</h2>
+      <div class="card" data-id="a">MA3220 Chapter 1<small>click me</small></div>
+      <div class="card" data-id="b">CS4243 Chapter 2<small>click me</small></div>
+      <div class="card" data-id="c">SQL50<small>click me</small></div>
+      <div class="card" data-id="d">CS4211 Lecture 1<small>click me</small></div>
+      <div class="card" data-id="e">Week 6 Leetcode<small>click me</small></div>
+    </div>
+
+    <div class="backdrop" id="backdrop"></div>
+    <div class="radial" id="radial">
+      <div class="radial-center" id="radialCenter">A</div>
+    </div>
+
+    <div class="editor" id="editor">
+      <div class="editor-box">
+        <h3 id="editorTitle">Edit card</h3>
+        <input id="edTitle" placeholder="Title" />
+        <textarea id="edDesc" rows="3" placeholder="Description"></textarea>
+        <input id="edDue" type="date" />
+        <button onclick="closeEditor()">Save</button>
+        <button style="background:transparent" onclick="closeEditor()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // Segments (icons are just glyphs for the demo).
+      const SEGMENTS = [
+        { key: 'edit', label: 'Edit', ico: '✎' },
+        { key: 'complete', label: 'Complete', ico: '✓' },
+        { key: 'due', label: 'Due', ico: '📅' },
+        { key: 'copy', label: 'Copy', ico: '⧉' },
+        { key: 'label', label: 'Label', ico: '🏷' },
+      ];
+      const RADIUS = 96; // how far segments fan out from center
+
+      const radial = document.getElementById('radial');
+      const backdrop = document.getElementById('backdrop');
+      let segEls = [];
+      let activeCard = null;
+
+      function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.classList.remove('show'), 1400);
+      }
+
+      function openRadial(x, y, cardEl) {
+        activeCard = cardEl;
+        closeRadial(true); // clear any old segments
+
+        radial.style.left = x + 'px';
+        radial.style.top = y + 'px';
+
+        // Build segments arranged in a circle (fan starts at top, clockwise).
+        const n = SEGMENTS.length;
+        segEls = SEGMENTS.map((s, i) => {
+          const el = document.createElement('div');
+          el.className = 'seg' + (s.key === 'complete' && cardEl.dataset.done === '1' ? ' on' : '');
+          el.innerHTML = `<span class="ico">${s.ico}</span><span>${s.label}</span>`;
+
+          const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
+          const tx = Math.cos(angle) * RADIUS;
+          const ty = Math.sin(angle) * RADIUS;
+
+          el.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            onSegment(s.key);
+          });
+
+          radial.appendChild(el);
+          // Stagger the fan-out: each segment animates a beat after the last.
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              el.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+              el.style.opacity = '1';
+            }, 45 * i);
+          });
+          return el;
+        });
+
+        radial.classList.add('open');
+        backdrop.classList.add('show');
+      }
+
+      function closeRadial(silent) {
+        segEls.forEach((el) => el.remove());
+        segEls = [];
+        radial.classList.remove('open');
+        backdrop.classList.remove('show');
+        if (!silent) activeCard = null;
+      }
+
+      function onSegment(key) {
+        if (key === 'edit' || key === 'due') {
+          openEditor(key === 'due' ? 'Edit card (due date)' : 'Edit card');
+        } else if (key === 'complete') {
+          const done = activeCard.dataset.done === '1';
+          activeCard.dataset.done = done ? '0' : '1';
+          toast(done ? 'Marked incomplete' : 'Marked complete ✓');
+        } else {
+          toast(key.charAt(0).toUpperCase() + key.slice(1) + ' (demo)');
+        }
+        closeRadial();
+      }
+
+      function openEditor(title) {
+        document.getElementById('editorTitle').textContent = title;
+        document.getElementById('editor').classList.add('show');
+      }
+      function closeEditor() {
+        document.getElementById('editor').classList.remove('show');
+      }
+
+      // Card click -> open radial at card center.
+      document.querySelectorAll('.card').forEach((card) => {
+        card.addEventListener('click', (ev) => {
+          const r = card.getBoundingClientRect();
+          openRadial(r.left + r.width / 2, r.top + r.height / 2, card);
+        });
+      });
+
+      backdrop.addEventListener('click', () => closeRadial());
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeRadial(); closeEditor(); }
+      });
+    </script>
+  </body>
+</html>
