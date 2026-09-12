@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
 
 // Load environment variables from .env (if present).
 try {
@@ -37,6 +37,8 @@ const isDev = process.argv.includes('--dev');
 
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
+/** @type {Tray | null} */
+let tray = null;
 /** @type {NodeJS.Timeout | null} */
 let pollTimer = null;
 
@@ -50,6 +52,7 @@ function createWindow() {
     height: 480,
     minWidth: 280,
     minHeight: 320,
+    title: 'Trello Gadget',
     // Gadget look: no OS chrome.
     frame: false,
     transparent: true,
@@ -59,8 +62,8 @@ function createWindow() {
     backgroundColor: '#0f1020',
     // Keep the gadget floating above other windows.
     alwaysOnTop: true,
-    // Don't clutter the taskbar / alt-tab like a normal app.
-    skipTaskbar: true,
+    // Show in the taskbar so it can be minimized/restored normally.
+    skipTaskbar: false,
     resizable: true,
     maximizable: false,
     fullscreenable: false,
@@ -84,6 +87,48 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+// A tiny purple square icon generated in-code (no icon file needed yet),
+// so there's always a tray entry to restore/show/quit the gadget.
+function makeTrayIcon() {
+  const size = 16;
+  const buf = Buffer.alloc(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    buf[i * 4 + 0] = 0xa7; // R  (matches --accent #a78bfa)
+    buf[i * 4 + 1] = 0x8b; // G
+    buf[i * 4 + 2] = 0xfa; // B
+    buf[i * 4 + 3] = 0xff; // A
+  }
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+}
+
+function showWindow() {
+  if (!mainWindow) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray() {
+  if (tray) return;
+  try {
+    tray = new Tray(makeTrayIcon());
+    tray.setToolTip('Trello Gadget');
+    const menu = Menu.buildFromTemplate([
+      { label: 'Show Trello Gadget', click: showWindow },
+      { type: 'separator' },
+      { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } },
+    ]);
+    tray.setContextMenu(menu);
+    // Single click shows the gadget.
+    tray.on('click', showWindow);
+  } catch (_e) {
+    // Tray is a nice-to-have; ignore if it can't be created.
+  }
 }
 
 // ---- IPC handlers (renderer -> main) ----
@@ -219,6 +264,7 @@ app.whenReady().then(() => {
   history.init(app.getPath('userData'));
   loadCredentials();
   createWindow();
+  createTray();
   startPolling();
 
   app.on('activate', () => {
