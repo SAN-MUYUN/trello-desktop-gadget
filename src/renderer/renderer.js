@@ -87,6 +87,99 @@ async function refresh() {
 
 refreshBtn.addEventListener('click', refresh);
 
+// ---- Settings panel ----
+const settingsOverlay = el('settingsOverlay');
+const apiKeyInput = el('apiKeyInput');
+const tokenInput = el('tokenInput');
+const boardIdInput = el('boardIdInput');
+const settingsMsg = el('settingsMsg');
+
+async function openSettings() {
+  settingsMsg.textContent = '';
+  settingsMsg.className = 'settings-msg';
+  try {
+    const s = await window.gadget.getSettings();
+    apiKeyInput.value = s.apiKey || '';
+    tokenInput.value = ''; // never prefill the token
+    tokenInput.placeholder = s.hasToken
+      ? `current token kept (${s.tokenHint}) — leave blank to keep`
+      : 'paste token';
+    boardIdInput.value = s.boardId || '';
+    if (s.usingMock) {
+      settingsMsg.textContent = 'Currently showing MOCK data — add credentials to connect.';
+    }
+  } catch (_e) {
+    /* ignore */
+  }
+  settingsOverlay.hidden = false;
+}
+
+function closeSettings() {
+  settingsOverlay.hidden = true;
+}
+
+el('settingsBtn').addEventListener('click', openSettings);
+el('settingsClose').addEventListener('click', closeSettings);
+
+el('openKeyPage').addEventListener('click', () =>
+  window.gadget.openExternal('https://trello.com/power-ups/admin')
+);
+el('openTokenPage').addEventListener('click', () => {
+  const key = apiKeyInput.value.trim();
+  // Trello's token authorization URL (requests read+write for this app).
+  const base = 'https://trello.com/1/authorize';
+  const params =
+    '?expiration=never&scope=read,write&response_type=token&name=Trello%20Gadget' +
+    (key ? '&key=' + encodeURIComponent(key) : '');
+  window.gadget.openExternal(base + params);
+});
+
+el('testBtn').addEventListener('click', async () => {
+  settingsMsg.textContent = 'Testing…';
+  settingsMsg.className = 'settings-msg';
+  const res = await window.gadget.testSettings({
+    apiKey: apiKeyInput.value.trim(),
+    token: tokenInput.value.trim(),
+  });
+  if (res.ok) {
+    settingsMsg.textContent = `✓ Connected as ${res.member.fullName || res.member.username}`;
+    settingsMsg.className = 'settings-msg ok';
+  } else {
+    settingsMsg.textContent = res.error;
+    settingsMsg.className = 'settings-msg err';
+  }
+});
+
+el('saveBtn').addEventListener('click', async () => {
+  const payload = {
+    apiKey: apiKeyInput.value.trim(),
+    boardId: boardIdInput.value.trim(),
+  };
+  const tk = tokenInput.value.trim();
+  if (tk) payload.token = tk; // only send if provided
+  const res = await window.gadget.saveSettings(payload);
+  if (res.ok) {
+    settingsMsg.textContent = '✓ Saved. Refreshing…';
+    settingsMsg.className = 'settings-msg ok';
+    boardsLoaded = false; // re-list boards with new creds
+    selectedBoardId = boardIdInput.value.trim();
+    closeSettings();
+    await refresh();
+  } else {
+    settingsMsg.textContent = 'Could not save settings.';
+    settingsMsg.className = 'settings-msg err';
+  }
+});
+
+el('clearBtn').addEventListener('click', async () => {
+  await window.gadget.clearSettings();
+  apiKeyInput.value = '';
+  tokenInput.value = '';
+  boardIdInput.value = '';
+  settingsMsg.textContent = 'Cleared. The app will use mock data until you add credentials.';
+  settingsMsg.className = 'settings-msg';
+});
+
 // ---- Board picker ----
 async function loadBoards() {
   try {
@@ -440,6 +533,17 @@ function escapeHtml(str) {
 async function init() {
   // Initial load so the window isn't empty on open.
   await refresh();
+
+  // First-run: if we have no credentials (mock mode), open Settings so the
+  // user can connect their Trello account.
+  try {
+    const s = await window.gadget.getSettings();
+    if (s.usingMock && s.source === 'none') {
+      openSettings();
+    }
+  } catch (_e) {
+    /* ignore */
+  }
 
   // If auto-polling is enabled in .env, the main process will push updates.
   window.gadget.onBoardUpdate((payload) => applyData(payload));

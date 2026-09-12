@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 
 // Load environment variables from .env (if present).
 try {
@@ -10,9 +10,28 @@ try {
   // dotenv is optional at runtime; ignore if unavailable.
 }
 
-const { getBoardData, getBoards, setCardComplete, useMock } = require('../trello/client');
+const client = require('../trello/client');
+const { getBoardData, getBoards, setCardComplete, useMock } = client;
 const { computeStats } = require('../stats/compute');
 const history = require('../history/store');
+const settings = require('../settings/store');
+
+// Load credentials into the client with precedence: stored settings > .env.
+// Works for both `npm start` (dev .env) and the packaged app (Settings panel).
+function loadCredentials() {
+  const stored = settings.load();
+  const envForceMock = String(process.env.USE_MOCK || '').toLowerCase() === 'true';
+
+  const apiKey = stored.apiKey || process.env.TRELLO_API_KEY || '';
+  const token = stored.token || process.env.TRELLO_TOKEN || '';
+  const boardId = stored.boardId || process.env.TRELLO_BOARD_ID || '';
+
+  // Force mock only if the dev explicitly set USE_MOCK=true AND there are no
+  // stored credentials (so a packaged user's saved creds always win).
+  const forceMock = envForceMock && !stored.apiKey;
+
+  client.setCredentials({ apiKey, token, boardId, forceMock });
+}
 
 const isDev = process.argv.includes('--dev');
 
@@ -99,6 +118,61 @@ ipcMain.handle('card:setComplete', async (_event, cardId, value) => {
   return setCardComplete(cardId, value);
 });
 
+// ---- Settings ----
+ipcMain.handle('settings:get', async () => {
+  const stored = settings.load();
+  const { apiKey, token, boardId } = client.getCredentials();
+  return {
+    // Never send the full token back to the UI; indicate presence + a hint.
+    hasApiKey: Boolean(apiKey),
+    hasToken: Boolean(token),
+    apiKey: apiKey || '',
+    tokenHint: token ? `${token.slice(0, 4)}…${token.slice(-4)}` : '',
+    boardId: boardId || '',
+    usingMock: useMock(),
+    source: stored.apiKey ? 'settings' : (process.env.TRELLO_API_KEY ? 'env' : 'none'),
+  };
+});
+
+ipcMain.handle('settings:save', async (_event, payload) => {
+  const current = settings.load();
+  const next = {
+    apiKey: (payload && payload.apiKey != null ? payload.apiKey : current.apiKey) || '',
+    // Only overwrite the token if a new non-empty one was provided.
+    token: (payload && payload.token ? payload.token : current.token) || '',
+    boardId: (payload && payload.boardId != null ? payload.boardId : current.boardId) || '',
+  };
+  const ok = settings.save(next);
+  loadCredentials();
+  return { ok };
+});
+
+ipcMain.handle('settings:test', async (_event, payload) => {
+  try {
+    const res = await client.testConnection(
+      payload && payload.apiKey,
+      payload && payload.token
+    );
+    return { ok: true, member: res.member };
+  } catch (err) {
+    return { ok: false, error: String(err && err.message ? err.message : err) };
+  }
+});
+
+ipcMain.handle('settings:clear', async () => {
+  settings.clear();
+  loadCredentials();
+  return { ok: true };
+});
+
+ipcMain.handle('shell:openExternal', async (_event, url) => {
+  if (typeof url === 'string' && /^https:\/\//i.test(url)) {
+    await shell.openExternal(url);
+    return true;
+  }
+  return false;
+});
+
 ipcMain.handle('window:setAlwaysOnTop', (_event, value) => {
   if (mainWindow) {
     mainWindow.setAlwaysOnTop(Boolean(value), 'screen-saver');
@@ -141,7 +215,9 @@ function stopPolling() {
 }
 
 app.whenReady().then(() => {
+  settings.init(app.getPath('userData'));
   history.init(app.getPath('userData'));
+  loadCredentials();
   createWindow();
   startPolling();
 

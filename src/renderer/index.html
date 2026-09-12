@@ -12,6 +12,7 @@
       <header class="titlebar">
         <div class="title" id="boardTitle">Trello Gadget</div>
         <div class="window-controls">
+          <button id="settingsBtn" class="ctrl" title="Settings" aria-label="Settings">⚙</button>
           <button id="refreshBtn" class="ctrl" title="Refresh from Trello" aria-label="Refresh">⟳</button>
           <button id="pinBtn" class="ctrl" title="Toggle always-on-top" aria-label="Pin">📌</button>
           <button id="minBtn" class="ctrl" title="Minimize" aria-label="Minimize">—</button>
@@ -63,6 +64,49 @@
       <footer class="statusbar">
         <span id="status">Loading…</span>
       </footer>
+
+      <!-- SETTINGS OVERLAY -->
+      <div id="settingsOverlay" class="overlay" hidden>
+        <div class="settings-panel">
+          <div class="settings-head">
+            <span>Settings</span>
+            <button id="settingsClose" class="ctrl" aria-label="Close settings">✕</button>
+          </div>
+
+          <p class="hint">
+            Enter your own Trello API key and token. They're stored encrypted on
+            this computer and never leave it.
+          </p>
+
+          <label class="field">
+            <span>API Key</span>
+            <input id="apiKeyInput" type="text" autocomplete="off" spellcheck="false" placeholder="your API key" />
+          </label>
+
+          <label class="field">
+            <span>Token</span>
+            <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="paste token (leave blank to keep current)" />
+          </label>
+
+          <label class="field">
+            <span>Board ID <em>(optional)</em></span>
+            <input id="boardIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="blank = first board / pick from dropdown" />
+          </label>
+
+          <div class="settings-links">
+            <button id="openKeyPage" class="linkbtn" type="button">Get API key ↗</button>
+            <button id="openTokenPage" class="linkbtn" type="button">Generate token ↗</button>
+          </div>
+
+          <div id="settingsMsg" class="settings-msg"></div>
+
+          <div class="settings-actions">
+            <button id="testBtn" class="btn" type="button">Test connection</button>
+            <button id="saveBtn" class="btn primary" type="button">Save</button>
+          </div>
+          <button id="clearBtn" class="linkbtn danger" type="button">Clear saved credentials</button>
+        </div>
+      </div>
     </div>
 
     <!-- Chart.js is loaded from node_modules after `npm install`. -->

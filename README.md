@@ -32,13 +32,20 @@ The gadget launches with **mock Trello data** so you can see it working immediat
 
 ## Connecting real Trello data
 
-1. Generate an **API Key** and **Token** at <https://trello.com/power-ups/admin>.
-2. Copy `.env.example` to `.env`.
-3. Fill in `TRELLO_API_KEY`, `TRELLO_TOKEN`, and (optionally) `TRELLO_BOARD_ID`.
-4. Set `USE_MOCK=false`.
-5. Restart the app.
+### In the app (works for the packaged .exe too) — recommended
 
-> Your credentials live only in your local `.env` file. They are never committed (`.env` is gitignored).
+1. Launch the app and click the **⚙ Settings** button in the title bar (it opens automatically on first run).
+2. Click **Get API key** to open Trello's page and copy your **API Key**.
+3. Click **Generate token** to authorize the app (requests read+write) and copy the **Token**.
+4. Paste both in, optionally set a **Board ID**, click **Test connection**, then **Save**.
+
+Credentials are stored **encrypted on your computer** (Electron `safeStorage` / Windows DPAPI) in the per-user app-data folder — nothing sensitive is bundled in the app or committed to git.
+
+### Via `.env` (developer convenience for `npm start` only)
+
+1. Copy `.env.example` to `.env`, fill in `TRELLO_API_KEY` / `TRELLO_TOKEN` (and optionally `TRELLO_BOARD_ID`), set `USE_MOCK=false`, restart.
+
+> **Why the packaged app showed mock data:** the built `.exe` does **not** read your project `.env` (it isn't bundled, by design — that would ship your secret token). Use the in-app **Settings** panel for the packaged app. Precedence is: **saved settings > `.env` > mock**.
 
 ## Project structure
 

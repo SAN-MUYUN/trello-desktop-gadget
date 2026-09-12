@@ -11,6 +11,13 @@ contextBridge.exposeInMainWorld('gadget', {
   clearHistory: (boardId) => ipcRenderer.invoke('history:clear', boardId),
   setCardComplete: (cardId, value) => ipcRenderer.invoke('card:setComplete', cardId, value),
 
+  // Settings
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  saveSettings: (payload) => ipcRenderer.invoke('settings:save', payload),
+  testSettings: (payload) => ipcRenderer.invoke('settings:test', payload),
+  clearSettings: () => ipcRenderer.invoke('settings:clear'),
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
   // Live updates pushed from the main process (polling).
   onBoardUpdate: (callback) => {
     const handler = (_event, payload) => callback(payload);

@@ -352,3 +352,123 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(167, 139, 250, 0.5);
 }
+
+
+/* ---- Settings overlay ---- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 11, 22, 0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px;
+  overflow-y: auto;
+  z-index: 50;
+  -webkit-app-region: no-drag;
+}
+.overlay[hidden] {
+  display: none;
+}
+.settings-panel {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 14px;
+}
+.hint {
+  font-size: 11px;
+  color: var(--fg-dim);
+  line-height: 1.4;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.field em {
+  font-style: normal;
+  opacity: 0.7;
+}
+.field input {
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--fg);
+  font-size: 12px;
+}
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.settings-links {
+  display: flex;
+  gap: 10px;
+}
+.linkbtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 0;
+  text-align: left;
+}
+.linkbtn:hover {
+  text-decoration: underline;
+}
+.linkbtn.danger {
+  color: var(--danger);
+}
+.settings-msg {
+  font-size: 11px;
+  min-height: 14px;
+}
+.settings-msg.ok {
+  color: var(--ok);
+}
+.settings-msg.err {
+  color: var(--danger);
+}
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 12px;
+}
+.btn:hover {
+  background: var(--panel-hover);
+}
+.btn.primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

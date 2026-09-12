@@ -4,27 +4,46 @@ const { getMockBoard, getMockBoards, setMockCardComplete } = require('./mock');
 
 const API_BASE = 'https://api.trello.com/1';
 
+// Runtime credentials. Populated by the main process from stored settings
+// (Settings panel) or .env — so both `npm start` and the packaged app work.
+let creds = {
+  apiKey: '',
+  token: '',
+  boardId: '',
+  forceMock: false, // set true when USE_MOCK=true in dev
+};
+
+function setCredentials({ apiKey, token, boardId, forceMock } = {}) {
+  creds = {
+    apiKey: apiKey || '',
+    token: token || '',
+    boardId: boardId || '',
+    forceMock: Boolean(forceMock),
+  };
+}
+
+function getCredentials() {
+  return { ...creds };
+}
+
+function hasCredentials() {
+  return Boolean(creds.apiKey && creds.token);
+}
+
 function useMock() {
-  // Default to mock unless explicitly disabled AND credentials are present.
-  const flag = String(process.env.USE_MOCK || 'true').toLowerCase();
-  if (flag === 'false') {
-    return !(process.env.TRELLO_API_KEY && process.env.TRELLO_TOKEN);
-  }
-  return true;
+  // Use mock if explicitly forced, or if we simply don't have credentials.
+  if (creds.forceMock) return true;
+  return !hasCredentials();
 }
 
 function authParams() {
-  const key = process.env.TRELLO_API_KEY;
-  const token = process.env.TRELLO_TOKEN;
-  return `key=${encodeURIComponent(key)}&token=${encodeURIComponent(token)}`;
+  return `key=${encodeURIComponent(creds.apiKey)}&token=${encodeURIComponent(creds.token)}`;
 }
 
 async function trelloFetch(pathAndQuery, method = 'GET') {
-  const key = process.env.TRELLO_API_KEY;
-  const token = process.env.TRELLO_TOKEN;
-  if (!key || !token) {
+  if (!hasCredentials()) {
     throw new Error(
-      'Missing Trello credentials. Set TRELLO_API_KEY and TRELLO_TOKEN in .env (and USE_MOCK=false).'
+      'Missing Trello credentials. Open Settings (⚙) and enter your API key and token.'
     );
   }
 
@@ -93,7 +112,7 @@ async function getBoards() {
 async function getBoardData(boardId) {
   if (useMock()) return getMockBoard();
 
-  let id = boardId || process.env.TRELLO_BOARD_ID;
+  let id = boardId || creds.boardId;
 
   // If no board was specified, fall back to the first board the user has.
   if (!id) {
@@ -147,4 +166,43 @@ async function setCardComplete(cardId, value) {
   return { id: res.id, dueComplete: Boolean(res.dueComplete) };
 }
 
-module.exports = { getBoards, getBoardData, setCardComplete, useMock };
+/**
+ * Test the given (or current) credentials against Trello.
+ * Returns { ok, member, canWrite } or throws with a descriptive error.
+ */
+async function testConnection(apiKey, token) {
+  const useKey = apiKey || creds.apiKey;
+  const useToken = token || creds.token;
+  if (!useKey || !useToken) {
+    throw new Error('Enter both an API key and a token first.');
+  }
+  const url = `${API_BASE}/members/me?fields=fullName,username&key=${encodeURIComponent(
+    useKey
+  )}&token=${encodeURIComponent(useToken)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+  } catch (err) {
+    const cause = err && err.cause ? ` (${err.cause.code || err.cause.message || err.cause})` : '';
+    throw new Error(`Could not reach api.trello.com${cause}.`);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (res.status === 401) throw new Error('Invalid API key or token (401).');
+  if (!res.ok) throw new Error(`Trello API ${res.status}: ${res.statusText}`);
+  const member = await res.json();
+  return { ok: true, member: { fullName: member.fullName, username: member.username } };
+}
+
+module.exports = {
+  getBoards,
+  getBoardData,
+  setCardComplete,
+  testConnection,
+  setCredentials,
+  getCredentials,
+  hasCredentials,
+  useMock,
+};
