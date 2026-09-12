@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, screen } = require('electron');
 
 // Load environment variables from .env (if present).
 try {
@@ -241,6 +241,47 @@ ipcMain.handle('window:close', () => {
 
 ipcMain.handle('window:minimize', () => {
   if (mainWindow) mainWindow.minimize();
+});
+
+// Remembers the window's normal bounds while it is temporarily expanded to
+// make room for the radial menu to fan out past the visible panel.
+let preExpandBounds = null;
+
+// Expand the window by `pad` px on every side, keeping the visible panel in
+// the same screen position, and clamp to the current monitor's work area.
+ipcMain.handle('window:expand', (_event, pad) => {
+  if (!mainWindow || preExpandBounds) return null;
+  const p = Math.max(0, Math.min(Number(pad) || 0, 300));
+  const b = mainWindow.getBounds();
+  preExpandBounds = { ...b };
+
+  const display = screen.getDisplayMatching(b);
+  const wa = display.workArea;
+
+  let x = b.x - p;
+  let y = b.y - p;
+  let width = b.width + p * 2;
+  let height = b.height + p * 2;
+
+  // Clamp within the monitor work area (keep the whole expanded window visible).
+  if (x < wa.x) x = wa.x;
+  if (y < wa.y) y = wa.y;
+  if (x + width > wa.x + wa.width) x = wa.x + wa.width - width;
+  if (y + height > wa.y + wa.height) y = wa.y + wa.height - height;
+
+  mainWindow.setBounds({ x, y, width, height });
+
+  // Tell the renderer where the panel now sits inside the enlarged window,
+  // so it can offset the panel to stay visually put.
+  return { pad: p, offsetX: b.x - x, offsetY: b.y - y };
+});
+
+// Restore the window to its pre-expand bounds.
+ipcMain.handle('window:restore', () => {
+  if (!mainWindow || !preExpandBounds) return false;
+  mainWindow.setBounds(preExpandBounds);
+  preExpandBounds = null;
+  return true;
 });
 
 // Optional periodic refresh. Disabled when POLL_INTERVAL_MS <= 0 (the

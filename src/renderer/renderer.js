@@ -345,8 +345,8 @@ function renderColumns() {
 
       if (meta.childNodes.length) c.appendChild(meta);
 
-      // Click anywhere on the card (except the checkbox) to edit it.
-      c.addEventListener('click', () => openCardEditor(card));
+      // Click anywhere on the card (except the checkbox) opens the radial menu.
+      c.addEventListener('click', () => openRadial(card, c));
 
       col.appendChild(c);
     }
@@ -418,6 +418,155 @@ function recomputeStatsFromBoard() {
   currentStats.completed = completed;
   currentStats.overdue = overdue;
 }
+
+// ---- Radial menu (card actions) ----
+const radialEl = el('radial');
+const radialCenter = el('radialCenter');
+const radialBackdrop = el('radialBackdrop');
+const appEl = el('app');
+
+const RADIAL_PAD = 90; // px the window grows on each side while open
+const RADIAL_RADIUS = 82; // how far segments fan out from the center
+
+let radialOpen = false;
+let radialCard = null;
+let radialSegEls = [];
+let panelOffset = { x: 0, y: 0 }; // where the panel sits inside the enlarged window
+
+// Segments shown on a card. `dynamicLabel` lets Complete flip its label.
+function radialSegments(card) {
+  return [
+    { key: 'edit', label: 'Edit', ico: '✎' },
+    {
+      key: 'complete',
+      label: card.dueComplete ? 'Undo' : 'Complete',
+      ico: '✓',
+      on: card.dueComplete,
+    },
+    { key: 'due', label: 'Due', ico: '📅' },
+  ];
+}
+
+async function openRadial(card, cardEl) {
+  if (radialOpen) return;
+  radialOpen = true;
+  radialCard = card;
+
+  // Capture the card center in the CURRENT (un-expanded) window coordinates.
+  const rect = cardEl.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  // Expand the OS window so the ring can fan out past the panel edge.
+  let off = { pad: RADIAL_PAD, offsetX: RADIAL_PAD, offsetY: RADIAL_PAD };
+  try {
+    const res = await window.gadget.expandWindow(RADIAL_PAD);
+    if (res) off = res;
+  } catch (_e) {
+    /* if expand fails, ring still works but clips at the window edge */
+  }
+
+  // Pin the panel where it visually was, inside the now-larger window.
+  panelOffset = { x: off.offsetX, y: off.offsetY };
+  const w = appEl.offsetWidth;
+  const h = appEl.offsetHeight;
+  document.body.classList.add('expanded');
+  appEl.style.left = off.offsetX + 'px';
+  appEl.style.top = off.offsetY + 'px';
+  appEl.style.width = w + 'px';
+  appEl.style.height = h + 'px';
+
+  // The click point, expressed in the enlarged window's coordinates.
+  const x = centerX + off.offsetX;
+  const y = centerY + off.offsetY;
+  radialEl.style.left = x + 'px';
+  radialEl.style.top = y + 'px';
+
+  // Build + animate the segments.
+  const segs = radialSegments(card);
+  const n = segs.length;
+  radialSegEls = segs.map((s, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (s.on ? ' on' : '');
+    seg.innerHTML = `<span class="ico">${s.ico}</span><span>${escapeHtml(s.label)}</span>`;
+    // Fan across the top arc so segments avoid the panel body below.
+    const spread = Math.PI * 1.2; // ~216° arc
+    const start = -Math.PI / 2 - spread / 2;
+    const angle = n === 1 ? -Math.PI / 2 : start + (spread / (n - 1)) * i;
+    const tx = Math.cos(angle) * RADIAL_RADIUS;
+    const ty = Math.sin(angle) * RADIAL_RADIUS;
+    seg.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      onRadialSegment(s.key);
+    });
+    radialEl.appendChild(seg);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        seg.style.transform = `translate(${tx}px, ${ty}px) scale(1)`;
+        seg.style.opacity = '1';
+      }, 45 * i);
+    });
+    return seg;
+  });
+
+  radialEl.classList.add('open');
+  radialBackdrop.classList.add('show');
+}
+
+async function closeRadial() {
+  if (!radialOpen) return;
+  radialOpen = false;
+  radialSegEls.forEach((s) => s.remove());
+  radialSegEls = [];
+  radialEl.classList.remove('open');
+  radialBackdrop.classList.remove('show');
+
+  // Un-pin the panel and shrink the window back.
+  document.body.classList.remove('expanded');
+  appEl.style.left = '';
+  appEl.style.top = '';
+  appEl.style.width = '';
+  appEl.style.height = '';
+  try {
+    await window.gadget.restoreWindow();
+  } catch (_e) {
+    /* ignore */
+  }
+  radialCard = null;
+}
+
+function onRadialSegment(key) {
+  const card = radialCard;
+  if (!card) return;
+  if (key === 'edit') {
+    closeRadial().then(() => openCardEditor(card));
+  } else if (key === 'due') {
+    closeRadial().then(() => {
+      openCardEditor(card);
+      // focus the due field for convenience
+      setTimeout(() => cardDueInput && cardDueInput.focus(), 50);
+    });
+  } else if (key === 'complete') {
+    // Find the live card element to reuse the optimistic toggle.
+    const cardEl = [...document.querySelectorAll('.card')].find((elm) => {
+      const nm = elm.querySelector('.card-name');
+      return nm && nm.textContent === card.name;
+    });
+    const toggleEl = cardEl && cardEl.querySelector('.complete-toggle');
+    closeRadial().then(() => {
+      if (cardEl && toggleEl) onToggleComplete(card, cardEl, toggleEl);
+    });
+  }
+}
+
+radialCenter.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  closeRadial();
+});
+radialBackdrop.addEventListener('click', () => closeRadial());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && radialOpen) closeRadial();
+});
 
 // ---- Card editor (edit + add) ----
 const cardOverlay = el('cardOverlay');

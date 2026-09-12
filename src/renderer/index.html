@@ -153,6 +153,13 @@
       </div>
     </div>
 
+    <!-- Radial menu layer — sibling of #app so it is NOT clipped by the
+         panel's rounded mask, letting the ring fan out past the panel. -->
+    <div id="radialBackdrop" class="radial-backdrop"></div>
+    <div id="radial" class="radial">
+      <button id="radialCenter" class="radial-center" title="Close" aria-label="Close menu">✕</button>
+    </div>
+
     <!-- Chart.js is loaded from node_modules after `npm install`. -->
     <script src="../../node_modules/chart.js/dist/chart.umd.js"></script>
     <script src="themes.js"></script>

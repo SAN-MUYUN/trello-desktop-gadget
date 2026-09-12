@@ -36,4 +36,6 @@ contextBridge.exposeInMainWorld('gadget', {
   setAlwaysOnTop: (value) => ipcRenderer.invoke('window:setAlwaysOnTop', value),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   close: () => ipcRenderer.invoke('window:close'),
+  expandWindow: (pad) => ipcRenderer.invoke('window:expand', pad),
+  restoreWindow: () => ipcRenderer.invoke('window:restore'),
 });
