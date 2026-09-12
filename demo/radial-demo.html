@@ -88,12 +88,18 @@
         background: var(--accent);
         color: #1b1030;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 18px;
+        font-weight: 700; font-size: 22px;
         box-shadow: 0 6px 20px rgba(124,92,255,0.5);
         transform: scale(0);
-        transition: transform 0.25s cubic-bezier(.2,1.3,.4,1);
+        transition: transform 0.25s cubic-bezier(.2,1.3,.4,1), background 0.15s;
+        cursor: pointer;
+        pointer-events: auto;
       }
       .radial.open .radial-center { transform: scale(1); }
+      .radial-center:hover {
+        background: #ff6b81; /* red on hover to signal "close" */
+        color: #fff;
+      }
 
       .seg {
         position: absolute;
@@ -179,7 +185,7 @@
 
     <div class="backdrop" id="backdrop"></div>
     <div class="radial" id="radial">
-      <div class="radial-center" id="radialCenter">A</div>
+      <div class="radial-center" id="radialCenter" title="Close">✕</div>
     </div>
 
     <div class="editor" id="editor">
@@ -292,6 +298,12 @@
           const r = card.getBoundingClientRect();
           openRadial(r.left + r.width / 2, r.top + r.height / 2, card);
         });
+      });
+
+      // Center button closes the radial menu.
+      document.getElementById('radialCenter').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        closeRadial();
       });
 
       backdrop.addEventListener('click', () => closeRadial());
