@@ -48,4 +48,13 @@ function getMockBoard() {
   return JSON.parse(JSON.stringify(MOCK_BOARD));
 }
 
-module.exports = { getMockBoards, getMockBoard };
+// Mutate the source mock so edits persist across getMockBoard() calls
+// (lets the "mark complete" toggle be tested offline).
+function setMockCardComplete(cardId, value) {
+  const card = MOCK_BOARD.cards.find((c) => c.id === cardId);
+  if (!card) throw new Error(`Mock card not found: ${cardId}`);
+  card.dueComplete = Boolean(value);
+  return { id: card.id, dueComplete: card.dueComplete };
+}
+
+module.exports = { getMockBoards, getMockBoard, setMockCardComplete };

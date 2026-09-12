@@ -10,6 +10,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 📊 **Stats view** — toggle in the same window; shows one chart at a time (cards per column, **cards per column over time**, status breakdown, cards per label).
 - 📈 **History over time** — the app records per-column card counts to a local file, **bucketed by day** (configurable to hourly via `HISTORY_BUCKET`). Each refresh updates the current bucket, so you get one clean, regularly-spaced point per day regardless of how often you refresh. The "over time" chart plots these as a lightweight cumulative-flow view; history persists across restarts.
 - 🔄 **On-demand refresh** — a ⟳ button fetches from Trello when *you* ask. Background auto-polling is off by default (opt-in via `POLL_INTERVAL_MS`).
+- ✅ **Mark cards complete** — a checkbox on each card toggles its complete state and saves it back to Trello (`PUT /1/cards/{id}` `dueComplete`). Optimistic UI with rollback on failure. *(Requires a token with **write** scope; a read-only token returns a clear 403 message.)*
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
 ## Requirements

@@ -186,11 +186,27 @@ function renderColumns() {
 
     for (const card of cards) {
       const c = document.createElement('div');
-      c.className = 'card';
+      c.className = 'card' + (card.dueComplete ? ' completed' : '');
+
+      // Header row: complete-toggle + card name.
+      const head = document.createElement('div');
+      head.className = 'card-head';
+
+      const toggle = document.createElement('button');
+      toggle.className = 'complete-toggle' + (card.dueComplete ? ' on' : '');
+      toggle.type = 'button';
+      toggle.title = card.dueComplete ? 'Mark incomplete' : 'Mark complete';
+      toggle.setAttribute('aria-label', toggle.title);
+      toggle.textContent = card.dueComplete ? '✓' : '';
+      toggle.addEventListener('click', () => onToggleComplete(card, c, toggle));
+      head.appendChild(toggle);
 
       const name = document.createElement('div');
+      name.className = 'card-name';
       name.textContent = card.name;
-      c.appendChild(name);
+      head.appendChild(name);
+
+      c.appendChild(head);
 
       const meta = document.createElement('div');
       meta.className = 'meta';
@@ -221,6 +237,55 @@ function badge(kind, text) {
   b.className = 'badge' + (kind ? ' ' + kind : '');
   b.textContent = text;
   return b;
+}
+
+// Toggle a card's complete state with an optimistic UI update.
+async function onToggleComplete(card, cardEl, toggleEl) {
+  if (toggleEl.disabled) return;
+  const previous = card.dueComplete;
+  const next = !previous;
+
+  // Optimistic: update local model + UI immediately.
+  card.dueComplete = next;
+  toggleEl.disabled = true;
+  toggleEl.classList.toggle('on', next);
+  toggleEl.textContent = next ? '✓' : '';
+  cardEl.classList.toggle('completed', next);
+  status.textContent = 'Saving…';
+
+  try {
+    await window.gadget.setCardComplete(card.id, next);
+    // Recompute stats/badges from the mutated model without a full re-fetch.
+    recomputeStatsFromBoard();
+    renderColumns();
+    renderSummary();
+    if (el('viewStats').classList.contains('active')) renderChart();
+    status.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    // Roll back on failure.
+    card.dueComplete = previous;
+    toggleEl.classList.toggle('on', previous);
+    toggleEl.textContent = previous ? '✓' : '';
+    cardEl.classList.toggle('completed', previous);
+    status.textContent = 'Error: ' + (err && err.message ? err.message : err);
+  } finally {
+    toggleEl.disabled = false;
+  }
+}
+
+// Recompute the "Done"/"Overdue"/totals locally after an edit, so the
+// summary + status chart stay in sync without a network round-trip.
+function recomputeStatsFromBoard() {
+  if (!currentBoard || !currentStats) return;
+  const now = Date.now();
+  let completed = 0;
+  let overdue = 0;
+  for (const c of currentBoard.cards) {
+    if (c.dueComplete) completed += 1;
+    else if (c.due && new Date(c.due).getTime() < now) overdue += 1;
+  }
+  currentStats.completed = completed;
+  currentStats.overdue = overdue;
 }
 
 // ---- Stats rendering ----

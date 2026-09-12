@@ -1,6 +1,6 @@
 'use strict';
 
-const { getMockBoard, getMockBoards } = require('./mock');
+const { getMockBoard, getMockBoards, setMockCardComplete } = require('./mock');
 
 const API_BASE = 'https://api.trello.com/1';
 
@@ -19,7 +19,7 @@ function authParams() {
   return `key=${encodeURIComponent(key)}&token=${encodeURIComponent(token)}`;
 }
 
-async function trelloFetch(pathAndQuery) {
+async function trelloFetch(pathAndQuery, method = 'GET') {
   const key = process.env.TRELLO_API_KEY;
   const token = process.env.TRELLO_TOKEN;
   if (!key || !token) {
@@ -38,6 +38,7 @@ async function trelloFetch(pathAndQuery) {
   let res;
   try {
     res = await fetch(url, {
+      method,
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     });
@@ -63,6 +64,9 @@ async function trelloFetch(pathAndQuery) {
     }
     if (res.status === 401) {
       throw new Error('Trello 401 Unauthorized — your API key or token is invalid/expired.');
+    }
+    if (res.status === 403) {
+      throw new Error("Trello 403 — can't save. Your token may be read-only; regenerate it with write access.");
     }
     if (res.status === 429) {
       throw new Error('Trello 429 — rate limited. Wait a moment and refresh again.');
@@ -123,4 +127,24 @@ async function getBoardData(boardId) {
   };
 }
 
-module.exports = { getBoards, getBoardData, useMock };
+/**
+ * Mark a card complete/incomplete (Trello's `dueComplete` flag).
+ * In mock mode, mutates the in-memory board so it's testable offline.
+ * Returns { id, dueComplete }.
+ */
+async function setCardComplete(cardId, value) {
+  if (!cardId) throw new Error('setCardComplete: missing cardId');
+  const complete = Boolean(value);
+
+  if (useMock()) {
+    return setMockCardComplete(cardId, complete);
+  }
+
+  const res = await trelloFetch(
+    `/cards/${cardId}?dueComplete=${complete ? 'true' : 'false'}`,
+    'PUT'
+  );
+  return { id: res.id, dueComplete: Boolean(res.dueComplete) };
+}
+
+module.exports = { getBoards, getBoardData, setCardComplete, useMock };

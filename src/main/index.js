@@ -10,7 +10,7 @@ try {
   // dotenv is optional at runtime; ignore if unavailable.
 }
 
-const { getBoardData, getBoards, useMock } = require('../trello/client');
+const { getBoardData, getBoards, setCardComplete, useMock } = require('../trello/client');
 const { computeStats } = require('../stats/compute');
 const history = require('../history/store');
 
@@ -93,6 +93,10 @@ ipcMain.handle('history:clear', async (_event, boardId) => {
 
 ipcMain.handle('boards:list', async () => {
   return getBoards();
+});
+
+ipcMain.handle('card:setComplete', async (_event, cardId, value) => {
+  return setCardComplete(cardId, value);
 });
 
 ipcMain.handle('window:setAlwaysOnTop', (_event, value) => {

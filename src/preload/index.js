@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('gadget', {
   listBoards: () => ipcRenderer.invoke('boards:list'),
   getHistory: (boardId) => ipcRenderer.invoke('history:get', boardId),
   clearHistory: (boardId) => ipcRenderer.invoke('history:clear', boardId),
+  setCardComplete: (cardId, value) => ipcRenderer.invoke('card:setComplete', cardId, value),
 
   // Live updates pushed from the main process (polling).
   onBoardUpdate: (callback) => {
