@@ -1,0 +1,27 @@
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+// Expose a minimal, safe API to the renderer. No Node access leaks through.
+contextBridge.exposeInMainWorld('gadget', {
+  // Data
+  getBoard: () => ipcRenderer.invoke('board:get'),
+  listBoards: () => ipcRenderer.invoke('boards:list'),
+
+  // Live updates pushed from the main process (polling).
+  onBoardUpdate: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('board:update', handler);
+    return () => ipcRenderer.removeListener('board:update', handler);
+  },
+  onBoardError: (callback) => {
+    const handler = (_event, message) => callback(message);
+    ipcRenderer.on('board:error', handler);
+    return () => ipcRenderer.removeListener('board:error', handler);
+  },
+
+  // Window controls
+  setAlwaysOnTop: (value) => ipcRenderer.invoke('window:setAlwaysOnTop', value),
+  minimize: () => ipcRenderer.invoke('window:minimize'),
+  close: () => ipcRenderer.invoke('window:close'),
+});

@@ -1,0 +1,47 @@
+{
+  "name": "trello-gadget",
+  "version": "0.1.0",
+  "description": "A translucent Windows 11 desktop gadget that shows Trello columns and stats.",
+  "main": "src/main/index.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis",
+    "lint": "echo \"(no linter configured yet)\" && exit 0"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.4",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "electron": "^32.1.2",
+    "electron-builder": "^25.0.5"
+  },
+  "build": {
+    "appId": "com.example.trellogadget",
+    "productName": "Trello Gadget",
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "TrelloGadget-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "TrelloGadget-Setup.exe"
+    }
+  }
+}
