@@ -20,11 +20,54 @@ function authParams() {
 }
 
 async function trelloFetch(pathAndQuery) {
+  const key = process.env.TRELLO_API_KEY;
+  const token = process.env.TRELLO_TOKEN;
+  if (!key || !token) {
+    throw new Error(
+      'Missing Trello credentials. Set TRELLO_API_KEY and TRELLO_TOKEN in .env (and USE_MOCK=false).'
+    );
+  }
+
   const sep = pathAndQuery.includes('?') ? '&' : '?';
   const url = `${API_BASE}${pathAndQuery}${sep}${authParams()}`;
-  const res = await fetch(url);
+
+  // Abort if the network hangs, so the UI doesn't spin forever.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
+  let res;
+  try {
+    res = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+  } catch (err) {
+    // Surface the REAL reason behind Node's opaque "fetch failed".
+    const cause = err && err.cause ? ` (${err.cause.code || err.cause.message || err.cause})` : '';
+    if (err && err.name === 'AbortError') {
+      throw new Error('Network timeout reaching api.trello.com (check internet/proxy/VPN).');
+    }
+    throw new Error(
+      `Could not reach api.trello.com${cause}. Check your internet connection, proxy, or VPN/firewall.`
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!res.ok) {
-    throw new Error(`Trello API ${res.status}: ${res.statusText}`);
+    let detail = '';
+    try {
+      detail = (await res.text()).slice(0, 200);
+    } catch (_e) {
+      /* ignore */
+    }
+    if (res.status === 401) {
+      throw new Error('Trello 401 Unauthorized — your API key or token is invalid/expired.');
+    }
+    if (res.status === 429) {
+      throw new Error('Trello 429 — rate limited. Wait a moment and refresh again.');
+    }
+    throw new Error(`Trello API ${res.status}: ${res.statusText}${detail ? ' — ' + detail : ''}`);
   }
   return res.json();
 }
