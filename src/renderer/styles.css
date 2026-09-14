@@ -137,9 +137,11 @@ body {
   border-color: var(--border);
 }
 .tab.active {
-  background: var(--panel-hover);
+  /* Solid accent fill + white text reads on every theme (incl. light). */
+  background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+  font-weight: 600;
 }
 
 /* ---- Views ---- */

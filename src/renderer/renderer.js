@@ -107,6 +107,8 @@ for (const t of window.gadgetThemes.themeList()) {
 // Live preview when the user changes the dropdown.
 themeSelect.addEventListener('change', (e) => {
   window.gadgetThemes.applyTheme(e.target.value);
+  // Re-render the chart so its legend/axis colors match the new theme.
+  if (el('viewStats').classList.contains('active')) renderChart();
 });
 
 async function openSettings() {
@@ -982,6 +984,12 @@ async function renderChart() {
   chartCanvas.hidden = false;
   chartFallback.hidden = true;
 
+  // Read the active theme's colors so the chart adapts (esp. light themes).
+  const cs = getComputedStyle(document.documentElement);
+  const fgColor = (cs.getPropertyValue('--fg') || '#e6e6ea').trim();
+  const fgDimColor = (cs.getPropertyValue('--fg-dim') || '#b9b9c0').trim();
+  const gridColor = (cs.getPropertyValue('--border-soft') || 'rgba(255,255,255,0.08)').trim();
+
   const usesAxes = cfg.type === 'bar' || cfg.type === 'line';
   cfg.options = {
     responsive: true,
@@ -990,14 +998,14 @@ async function renderChart() {
     plugins: {
       legend: {
         display: cfg.type !== 'bar', // bar charts have a single series
-        labels: { color: '#e6e6ea', font: { size: 10 }, boxWidth: 12 },
+        labels: { color: fgColor, font: { size: 10 }, boxWidth: 12 },
         position: cfg.__isTime ? 'bottom' : 'top',
       },
     },
     scales: usesAxes
       ? {
-          x: { ticks: { color: '#b9b9c0', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 5 }, grid: { display: false } },
-          y: { ticks: { color: '#b9b9c0', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.08)' }, beginAtZero: true },
+          x: { ticks: { color: fgDimColor, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 5 }, grid: { display: false } },
+          y: { ticks: { color: fgDimColor, font: { size: 9 } }, grid: { color: gridColor }, beginAtZero: true },
         }
       : {},
   };
