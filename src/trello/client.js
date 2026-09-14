@@ -6,6 +6,11 @@ const {
   setMockCardComplete,
   updateMockCard,
   createMockCard,
+  getMockChecklists,
+  setMockCheckItemState,
+  renameMockCheckItem,
+  addMockCheckItem,
+  deleteMockCheckItem,
 } = require('./mock');
 
 const API_BASE = 'https://api.trello.com/1';
@@ -240,6 +245,88 @@ async function createCard(fields = {}) {
   };
 }
 
+// ---- Checklists ----
+
+/**
+ * Get all checklists (with items) for a card, normalized to:
+ * [{ id, name, items: [{ id, name, complete }] }]
+ */
+async function getChecklists(cardId) {
+  if (!cardId) throw new Error('getChecklists: missing cardId');
+
+  if (useMock()) {
+    return getMockChecklists(cardId).map((cl) => ({
+      id: cl.id,
+      name: cl.name,
+      items: cl.checkItems.map((i) => ({
+        id: i.id,
+        name: i.name,
+        complete: i.state === 'complete',
+      })),
+    }));
+  }
+
+  const lists = await trelloFetch(
+    `/cards/${cardId}/checklists?fields=name&checkItem_fields=name,state`
+  );
+  return (lists || []).map((cl) => ({
+    id: cl.id,
+    name: cl.name,
+    items: (cl.checkItems || []).map((i) => ({
+      id: i.id,
+      name: i.name,
+      complete: i.state === 'complete',
+    })),
+  }));
+}
+
+/** Toggle a check item's complete state. */
+async function setCheckItemState(cardId, itemId, complete) {
+  const state = complete ? 'complete' : 'incomplete';
+  if (useMock()) {
+    const it = setMockCheckItemState(cardId, itemId, state);
+    return { id: it.id, name: it.name, complete: it.state === 'complete' };
+  }
+  const res = await trelloFetch(`/cards/${cardId}/checkItem/${itemId}?state=${state}`, 'PUT');
+  return { id: res.id, name: res.name, complete: res.state === 'complete' };
+}
+
+/** Rename a check item. */
+async function renameCheckItem(cardId, itemId, name) {
+  if (useMock()) {
+    const it = renameMockCheckItem(cardId, itemId, name);
+    return { id: it.id, name: it.name, complete: it.state === 'complete' };
+  }
+  const res = await trelloFetch(
+    `/cards/${cardId}/checkItem/${itemId}?name=${encodeURIComponent(name)}`,
+    'PUT'
+  );
+  return { id: res.id, name: res.name, complete: res.state === 'complete' };
+}
+
+/** Add a new check item to a checklist. */
+async function addCheckItem(cardId, checklistId, name) {
+  if (!name) throw new Error('addCheckItem: name required');
+  if (useMock()) {
+    const it = addMockCheckItem(cardId, checklistId, name);
+    return { id: it.id, name: it.name, complete: it.state === 'complete' };
+  }
+  const res = await trelloFetch(
+    `/checklists/${checklistId}/checkItems?name=${encodeURIComponent(name)}`,
+    'POST'
+  );
+  return { id: res.id, name: res.name, complete: res.state === 'complete' };
+}
+
+/** Delete a check item. */
+async function deleteCheckItem(cardId, checklistId, itemId) {
+  if (useMock()) {
+    return deleteMockCheckItem(cardId, checklistId, itemId);
+  }
+  await trelloFetch(`/checklists/${checklistId}/checkItems/${itemId}`, 'DELETE');
+  return { id: itemId, deleted: true };
+}
+
 /**
  * Test the given (or current) credentials against Trello.
  * Returns { ok, member, canWrite } or throws with a descriptive error.
@@ -276,6 +363,11 @@ module.exports = {
   setCardComplete,
   updateCard,
   createCard,
+  getChecklists,
+  setCheckItemState,
+  renameCheckItem,
+  addCheckItem,
+  deleteCheckItem,
   testConnection,
   setCredentials,
   getCredentials,

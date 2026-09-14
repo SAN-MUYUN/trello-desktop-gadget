@@ -39,6 +39,42 @@ const MOCK_BOARD = {
   ],
 };
 
+// Mock checklists keyed by card id. Each card may have several checklists,
+// each with check items { id, name, state: 'complete'|'incomplete' }.
+const MOCK_CHECKLISTS = {
+  c3: [
+    {
+      id: 'cl-c3-1',
+      name: 'Implementation',
+      checkItems: [
+        { id: 'ci-1', name: 'Auth with API key + token', state: 'complete' },
+        { id: 'ci-2', name: 'Fetch board / lists / cards', state: 'complete' },
+        { id: 'ci-3', name: 'Normalize response', state: 'incomplete' },
+        { id: 'ci-4', name: 'Error handling', state: 'incomplete' },
+      ],
+    },
+    {
+      id: 'cl-c3-2',
+      name: 'Testing',
+      checkItems: [
+        { id: 'ci-5', name: 'Mock-mode smoke test', state: 'complete' },
+        { id: 'ci-6', name: 'Live board test', state: 'incomplete' },
+      ],
+    },
+  ],
+  c6: [
+    {
+      id: 'cl-c6-1',
+      name: 'Settings fields',
+      checkItems: [
+        { id: 'ci-7', name: 'API key input', state: 'complete' },
+        { id: 'ci-8', name: 'Token input', state: 'complete' },
+        { id: 'ci-9', name: 'Theme picker', state: 'incomplete' },
+      ],
+    },
+  ],
+};
+
 function getMockBoards() {
   return MOCK_BOARDS;
 }
@@ -87,10 +123,57 @@ function createMockCard(fields) {
   return JSON.parse(JSON.stringify(card));
 }
 
+// ---- Mock checklist helpers ----
+function getMockChecklists(cardId) {
+  return JSON.parse(JSON.stringify(MOCK_CHECKLISTS[cardId] || []));
+}
+
+function findMockItem(cardId, itemId) {
+  for (const cl of MOCK_CHECKLISTS[cardId] || []) {
+    const item = cl.checkItems.find((i) => i.id === itemId);
+    if (item) return { cl, item };
+  }
+  return null;
+}
+
+function setMockCheckItemState(cardId, itemId, state) {
+  const hit = findMockItem(cardId, itemId);
+  if (!hit) throw new Error(`Mock check item not found: ${itemId}`);
+  hit.item.state = state === 'complete' ? 'complete' : 'incomplete';
+  return JSON.parse(JSON.stringify(hit.item));
+}
+
+function renameMockCheckItem(cardId, itemId, name) {
+  const hit = findMockItem(cardId, itemId);
+  if (!hit) throw new Error(`Mock check item not found: ${itemId}`);
+  hit.item.name = name;
+  return JSON.parse(JSON.stringify(hit.item));
+}
+
+function addMockCheckItem(cardId, checklistId, name) {
+  const cl = (MOCK_CHECKLISTS[cardId] || []).find((c) => c.id === checklistId);
+  if (!cl) throw new Error(`Mock checklist not found: ${checklistId}`);
+  const item = { id: 'ci' + ++mockSeq, name: name || 'New item', state: 'incomplete' };
+  cl.checkItems.push(item);
+  return JSON.parse(JSON.stringify(item));
+}
+
+function deleteMockCheckItem(cardId, checklistId, itemId) {
+  const cl = (MOCK_CHECKLISTS[cardId] || []).find((c) => c.id === checklistId);
+  if (!cl) throw new Error(`Mock checklist not found: ${checklistId}`);
+  cl.checkItems = cl.checkItems.filter((i) => i.id !== itemId);
+  return { id: itemId, deleted: true };
+}
+
 module.exports = {
   getMockBoards,
   getMockBoard,
   setMockCardComplete,
   updateMockCard,
   createMockCard,
+  getMockChecklists,
+  setMockCheckItemState,
+  renameMockCheckItem,
+  addMockCheckItem,
+  deleteMockCheckItem,
 };

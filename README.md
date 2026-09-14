@@ -14,6 +14,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - ✅ **Mark cards complete** — a checkbox on each card toggles its complete state and saves it back to Trello (`PUT /1/cards/{id}` `dueComplete`). Optimistic UI with rollback on failure. *(Requires a token with **write** scope; a read-only token returns a clear 403 message.)*
 - 🥧 **Radial (pie) menu** — click a card and a ring of actions **fans out** (Edit / Complete / Due). The ring stays within the panel and auto-positions near edges so it never clips or glitches. Center **✕**, click-outside, or **Esc** closes it.
 - ✏️ **Edit cards** — from the radial menu, **Edit** opens an editor for **title, description, and due date** (`PUT /1/cards/{id}`). The complete checkbox has its own click zone.
+- ☑️ **Edit checklists** — the card editor shows **all checklists** on a card (collapsible, with `done/total` progress). Toggle, rename, add, and delete items — synced to Trello (`/checkItem`, `/checklists/{id}/checkItems`).
 - ➕ **Add cards** — each column has a **+ Add card** button; pick the column, enter title (and optional description/due), and it's created via `POST /1/cards`.
 - 🎨 **Theme presets** — pick from contrast-safe color schemes (Kiro Dark Blue, Midnight, Slate, Forest, Light, **Apple Light**, **Apple Dark**) in Settings; applied live and remembered.
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.

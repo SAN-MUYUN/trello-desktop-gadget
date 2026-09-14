@@ -572,9 +572,12 @@ const cardColumnSelect = el('cardColumnSelect');
 const cardDescInput = el('cardDescInput');
 const cardDueInput = el('cardDueInput');
 const cardMsg = el('cardMsg');
+const checklistSection = el('checklistSection');
+const checklistContainer = el('checklistContainer');
 
 let editorMode = 'edit'; // 'edit' | 'create'
 let editingCardId = null;
+const collapsedChecklists = new Set(); // remembers collapsed state per checklist id
 
 // Convert an ISO datetime to yyyy-mm-dd for the <input type="date">.
 function isoToDateInput(iso) {
@@ -605,6 +608,9 @@ function openCardEditor(card) {
   cardMsg.className = 'settings-msg';
   cardOverlay.hidden = false;
   cardTitleInput.focus();
+
+  // Lazily load checklists for this card.
+  loadChecklists(card.id);
 }
 
 function openCardCreator(listId) {
@@ -626,10 +632,193 @@ function openCardCreator(listId) {
   cardColumnSelect.value = listId || (currentBoard.lists[0] && currentBoard.lists[0].id);
   cardColumnField.hidden = false;
 
+  // New cards have no checklists yet — hide the section.
+  checklistSection.hidden = true;
+  checklistContainer.innerHTML = '';
+
   cardMsg.textContent = '';
   cardMsg.className = 'settings-msg';
   cardOverlay.hidden = false;
   cardTitleInput.focus();
+}
+
+// ---- Checklists ----
+let checklistCardId = null;
+
+async function loadChecklists(cardId) {
+  checklistCardId = cardId;
+  checklistSection.hidden = false;
+  checklistContainer.innerHTML = '<div class="checklist-empty">Loading checklists…</div>';
+  try {
+    const checklists = await window.gadget.getChecklists(cardId);
+    // Guard against a slow response arriving after the editor moved on.
+    if (checklistCardId !== cardId) return;
+    renderChecklists(checklists);
+  } catch (err) {
+    checklistContainer.innerHTML =
+      '<div class="checklist-empty">Could not load checklists: ' +
+      escapeHtml(err && err.message ? err.message : String(err)) +
+      '</div>';
+  }
+}
+
+function renderChecklists(checklists) {
+  checklistContainer.innerHTML = '';
+  if (!checklists || !checklists.length) {
+    checklistContainer.innerHTML =
+      '<div class="checklist-empty">No checklists on this card.</div>';
+    return;
+  }
+
+  for (const cl of checklists) {
+    const done = cl.items.filter((i) => i.complete).length;
+    const total = cl.items.length;
+
+    const box = document.createElement('div');
+    box.className = 'checklist' + (collapsedChecklists.has(cl.id) ? ' collapsed' : '');
+
+    // Title row (click to collapse/expand).
+    const title = document.createElement('div');
+    title.className = 'checklist-title';
+    title.innerHTML =
+      `<span><span class="caret">▼</span> ${escapeHtml(cl.name)}</span>` +
+      `<span class="progress">${done}/${total}</span>`;
+    title.addEventListener('click', () => {
+      box.classList.toggle('collapsed');
+      if (box.classList.contains('collapsed')) collapsedChecklists.add(cl.id);
+      else collapsedChecklists.delete(cl.id);
+    });
+    box.appendChild(title);
+
+    const body = document.createElement('div');
+    body.className = 'checklist-body';
+
+    for (const item of cl.items) {
+      body.appendChild(buildCheckItem(cl, item, title));
+    }
+
+    // Add-item row.
+    const addRow = document.createElement('div');
+    addRow.className = 'add-item-row';
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.placeholder = 'Add an item…';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.textContent = 'Add';
+    const doAdd = async () => {
+      const name = addInput.value.trim();
+      if (!name) return;
+      addBtn.disabled = true;
+      try {
+        const created = await window.gadget.addCheckItem(checklistCardId, cl.id, name);
+        cl.items.push(created);
+        addInput.value = '';
+        body.insertBefore(buildCheckItem(cl, created, title), addRow);
+        updateProgress(cl, title);
+      } catch (err) {
+        cardMsg.textContent = 'Error: ' + (err && err.message ? err.message : err);
+        cardMsg.className = 'settings-msg err';
+      } finally {
+        addBtn.disabled = false;
+        addInput.focus();
+      }
+    };
+    addBtn.addEventListener('click', doAdd);
+    addInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); doAdd(); }
+    });
+    addRow.appendChild(addInput);
+    addRow.appendChild(addBtn);
+    body.appendChild(addRow);
+
+    box.appendChild(body);
+    checklistContainer.appendChild(box);
+  }
+}
+
+function buildCheckItem(cl, item, titleEl) {
+  const row = document.createElement('div');
+  row.className = 'check-item' + (item.complete ? ' done' : '');
+
+  // Toggle box
+  const box = document.createElement('button');
+  box.type = 'button';
+  box.className = 'check-box' + (item.complete ? ' on' : '');
+  box.textContent = item.complete ? '✓' : '';
+  box.addEventListener('click', async () => {
+    const next = !item.complete;
+    box.disabled = true;
+    try {
+      await window.gadget.setCheckItemState(checklistCardId, item.id, next);
+      item.complete = next;
+      box.classList.toggle('on', next);
+      box.textContent = next ? '✓' : '';
+      row.classList.toggle('done', next);
+      updateProgress(cl, titleEl);
+    } catch (err) {
+      cardMsg.textContent = 'Error: ' + (err && err.message ? err.message : err);
+      cardMsg.className = 'settings-msg err';
+    } finally {
+      box.disabled = false;
+    }
+  });
+  row.appendChild(box);
+
+  // Editable name (rename on blur / Enter if changed)
+  const nameInput = document.createElement('input');
+  nameInput.className = 'item-name';
+  nameInput.type = 'text';
+  nameInput.value = item.name;
+  const commitRename = async () => {
+    const newName = nameInput.value.trim();
+    if (!newName || newName === item.name) {
+      nameInput.value = item.name;
+      return;
+    }
+    try {
+      await window.gadget.renameCheckItem(checklistCardId, item.id, newName);
+      item.name = newName;
+    } catch (err) {
+      nameInput.value = item.name; // revert
+      cardMsg.textContent = 'Error: ' + (err && err.message ? err.message : err);
+      cardMsg.className = 'settings-msg err';
+    }
+  };
+  nameInput.addEventListener('blur', commitRename);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); nameInput.blur(); }
+  });
+  row.appendChild(nameInput);
+
+  // Delete button
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'check-del';
+  del.title = 'Delete item';
+  del.textContent = '✕';
+  del.addEventListener('click', async () => {
+    del.disabled = true;
+    try {
+      await window.gadget.deleteCheckItem(checklistCardId, cl.id, item.id);
+      cl.items = cl.items.filter((i) => i.id !== item.id);
+      row.remove();
+      updateProgress(cl, titleEl);
+    } catch (err) {
+      del.disabled = false;
+      cardMsg.textContent = 'Error: ' + (err && err.message ? err.message : err);
+      cardMsg.className = 'settings-msg err';
+    }
+  });
+  row.appendChild(del);
+
+  return row;
+}
+
+function updateProgress(cl, titleEl) {
+  const done = cl.items.filter((i) => i.complete).length;
+  const prog = titleEl.querySelector('.progress');
+  if (prog) prog.textContent = `${done}/${cl.items.length}`;
 }
 
 function closeCardEditor() {

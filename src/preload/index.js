@@ -13,6 +13,17 @@ contextBridge.exposeInMainWorld('gadget', {
   updateCard: (cardId, fields) => ipcRenderer.invoke('card:update', cardId, fields),
   createCard: (fields) => ipcRenderer.invoke('card:create', fields),
 
+  // Checklists
+  getChecklists: (cardId) => ipcRenderer.invoke('checklist:get', cardId),
+  setCheckItemState: (cardId, itemId, complete) =>
+    ipcRenderer.invoke('checklist:setItemState', cardId, itemId, complete),
+  renameCheckItem: (cardId, itemId, name) =>
+    ipcRenderer.invoke('checklist:renameItem', cardId, itemId, name),
+  addCheckItem: (cardId, checklistId, name) =>
+    ipcRenderer.invoke('checklist:addItem', cardId, checklistId, name),
+  deleteCheckItem: (cardId, checklistId, itemId) =>
+    ipcRenderer.invoke('checklist:deleteItem', cardId, checklistId, itemId),
+
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (payload) => ipcRenderer.invoke('settings:save', payload),

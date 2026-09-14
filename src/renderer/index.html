@@ -143,6 +143,12 @@
             <input id="cardDueInput" type="date" />
           </label>
 
+          <!-- Checklists (edit mode only) — populated lazily by renderer.js -->
+          <div id="checklistSection" class="checklist-section" hidden>
+            <div class="checklist-head">Checklists</div>
+            <div id="checklistContainer"></div>
+          </div>
+
           <div id="cardMsg" class="settings-msg"></div>
 
           <div class="settings-actions">

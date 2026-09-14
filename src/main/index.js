@@ -11,7 +11,19 @@ try {
 }
 
 const client = require('../trello/client');
-const { getBoardData, getBoards, setCardComplete, updateCard, createCard, useMock } = client;
+const {
+  getBoardData,
+  getBoards,
+  setCardComplete,
+  updateCard,
+  createCard,
+  getChecklists,
+  setCheckItemState,
+  renameCheckItem,
+  addCheckItem,
+  deleteCheckItem,
+  useMock,
+} = client;
 const { computeStats } = require('../stats/compute');
 const history = require('../history/store');
 const settings = require('../settings/store');
@@ -169,6 +181,23 @@ ipcMain.handle('card:update', async (_event, cardId, fields) => {
 
 ipcMain.handle('card:create', async (_event, fields) => {
   return createCard(fields || {});
+});
+
+// ---- Checklists ----
+ipcMain.handle('checklist:get', async (_event, cardId) => {
+  return getChecklists(cardId);
+});
+ipcMain.handle('checklist:setItemState', async (_event, cardId, itemId, complete) => {
+  return setCheckItemState(cardId, itemId, complete);
+});
+ipcMain.handle('checklist:renameItem', async (_event, cardId, itemId, name) => {
+  return renameCheckItem(cardId, itemId, name);
+});
+ipcMain.handle('checklist:addItem', async (_event, cardId, checklistId, name) => {
+  return addCheckItem(cardId, checklistId, name);
+});
+ipcMain.handle('checklist:deleteItem', async (_event, cardId, checklistId, itemId) => {
+  return deleteCheckItem(cardId, checklistId, itemId);
 });
 
 // ---- Settings ----
