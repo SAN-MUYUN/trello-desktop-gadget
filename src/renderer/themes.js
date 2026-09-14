@@ -101,6 +101,47 @@ const THEMES = {
       '--gadget-bg': 'linear-gradient(160deg, rgba(255,255,255,0.98) 0%, rgba(244,245,248,0.98) 100%)',
     },
   },
+  'apple-light': {
+    label: 'Apple Light',
+    vars: {
+      // macOS / iOS light: near-white frosted surfaces, SF blue accent,
+      // near-black text for strong contrast.
+      '--bg-1': '#f5f5f7',
+      '--bg-2': '#ffffff',
+      '--bg-3': '#f2f2f4',
+      '--fg': '#1d1d1f', // Apple's signature near-black text
+      '--fg-dim': '#6e6e73', // Apple secondary label grey
+      '--accent': '#0071e3', // Apple system blue
+      '--accent-soft': '#0a84ff',
+      '--danger': '#ff3b30', // Apple system red
+      '--ok': '#34c759', // Apple system green
+      '--panel': 'rgba(0, 0, 0, 0.04)',
+      '--panel-hover': 'rgba(0, 113, 227, 0.10)',
+      '--border': 'rgba(0, 0, 0, 0.12)',
+      '--border-soft': 'rgba(0, 0, 0, 0.08)',
+      '--gadget-bg': 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(245,245,247,0.92) 100%)',
+    },
+  },
+  'apple-dark': {
+    label: 'Apple Dark',
+    vars: {
+      // macOS dark: deep neutral greys, brighter SF blue, light text.
+      '--bg-1': '#1c1c1e',
+      '--bg-2': '#2c2c2e',
+      '--bg-3': '#3a3a3c',
+      '--fg': '#f5f5f7',
+      '--fg-dim': '#98989d',
+      '--accent': '#0a84ff', // Apple system blue (dark)
+      '--accent-soft': '#409cff',
+      '--danger': '#ff453a',
+      '--ok': '#30d158',
+      '--panel': 'rgba(255, 255, 255, 0.06)',
+      '--panel-hover': 'rgba(10, 132, 255, 0.20)',
+      '--border': 'rgba(255, 255, 255, 0.14)',
+      '--border-soft': 'rgba(255, 255, 255, 0.10)',
+      '--gadget-bg': 'linear-gradient(180deg, rgba(44,44,46,0.94) 0%, rgba(28,28,30,0.94) 100%)',
+    },
+  },
 };
 
 const DEFAULT_THEME = 'kiro-dark-blue';

@@ -15,7 +15,7 @@ A small, translucent Windows 11 desktop gadget (Electron) that displays selected
 - 🥧 **Radial (pie) menu** — click a card and a ring of actions **fans out** (Edit / Complete / Due). The ring stays within the panel and auto-positions near edges so it never clips or glitches. Center **✕**, click-outside, or **Esc** closes it.
 - ✏️ **Edit cards** — from the radial menu, **Edit** opens an editor for **title, description, and due date** (`PUT /1/cards/{id}`). The complete checkbox has its own click zone.
 - ➕ **Add cards** — each column has a **+ Add card** button; pick the column, enter title (and optional description/due), and it's created via `POST /1/cards`.
-- 🎨 **Theme presets** — pick from contrast-safe color schemes (Kiro Dark Blue, Midnight, Slate, Forest, Light) in Settings; applied live and remembered.
+- 🎨 **Theme presets** — pick from contrast-safe color schemes (Kiro Dark Blue, Midnight, Slate, Forest, Light, **Apple Light**, **Apple Dark**) in Settings; applied live and remembered.
 - 🧪 **Mock data included** — the app runs and looks right *before* you add any Trello credentials.
 
 ## Requirements
