@@ -147,11 +147,16 @@ const THEMES = {
 const DEFAULT_THEME = 'kiro-dark-blue';
 
 function applyTheme(id) {
-  const theme = THEMES[id] || THEMES[DEFAULT_THEME];
+  const resolved = THEMES[id] ? id : DEFAULT_THEME;
+  const theme = THEMES[resolved];
   const root = document.documentElement;
   for (const [k, v] of Object.entries(theme.vars)) {
     root.style.setProperty(k, v);
   }
+  // Expose the active theme id as a class so CSS can target a single theme
+  // (e.g. light themes that need extra contrast tweaks) without affecting
+  // the others.
+  root.setAttribute('data-theme', resolved);
 }
 
 function themeList() {
